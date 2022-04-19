@@ -3,6 +3,11 @@ from os.path import exists
 import shutil
 from typing import Tuple
 
+#import files as f
+#u1 = f.User('Alice')
+#u2 = f.User('Bob')
+#f.app_root = 'F:/UNI/BiztProt/NHF/bizt-prot-hf/src/files'
+
 class User:
     def __init__(self, name) -> None:
         self.name = name
@@ -15,14 +20,15 @@ def __os_path_prefix(user: User) -> str:
     return f'{app_root}/data/{user.name}/'
 
 
-def __join_pwd(list: list[str]) -> str:
+def __join_path(list: list[str]) -> str:
     return '/'.join(list)
 
 
-def __parse_path(pwd: list[str], path: str) -> list[str]:
+def __parse_path(user: User, path: str) -> list[str]:
+    pwd = user.pwd
     ss = path.split('/')
     # path if absolute
-    ret = [] if ss[0] == '' else pwd
+    ret = [] if ss[0] == '' else pwd.copy()
 
     for s in ss:
         if s == '':
@@ -34,42 +40,65 @@ def __parse_path(pwd: list[str], path: str) -> list[str]:
     return ret
 
 
+def __create_home(user: User) -> None:
+    os_path = __os_path_prefix(user)
+    if not exists(os_path):
+        os.makedirs(os_path)
+
+
+
 def cmd_pwd(user: User) -> str:
+    __create_home(user)
     if len(user.pwd) == 0:
         return '~'
     else:
-        return '~/' + __join_pwd(user.pwd)
+        return '~/' + __join_path(user.pwd)
 
 
 def cmd_lst(user: User) -> list[str]:
-    os_path = __os_path_prefix(user.pwd) + __join_pwd(user.pwd)
+    __create_home(user)
+    os_path = __os_path_prefix(user) + __join_path(user.pwd)
     return os.listdir(os_path)
 
 
 def cmd_chd(user: User, path: str) -> bool:
-    parsed_path = __parse_path(user.pwd, path)
-    if exists(parsed_path):
+    __create_home(user)
+    parsed_path = __parse_path(user, path)
+    os_path = __os_path_prefix(user) + __join_path(parsed_path)
+    if exists(os_path):
         user.pwd = parsed_path
         return True
     return False
 
 
 def cmd_mkd(user: User, path: str) -> bool:
-    os_path = __os_path_prefix(user.pwd) + __parse_path(user.pwd, path)
+    __create_home(user)
+    os_path = __os_path_prefix(user) + __join_path(__parse_path(user, path))
     os.mkdir(os_path)
 
 
 def cmd_del(user: User, path: str) -> bool:
-    os_path = __os_path_prefix(user.pwd) + __parse_path(user.pwd, path)
+    __create_home(user)
+    os_path = __os_path_prefix(user) + __join_path(__parse_path(user, path))
     if os.path.isfile(os_path):
         os.remove(os_path)
-    elif os.path.isdir(path):
+    elif os.path.isdir(os_path):
         shutil.rmtree(os_path)
-
+    else:
+        return False
+    return True
 
 def cmd_upl(user: User, fname: str, data: bytes) -> bool:
-    pass
+    __create_home(user)
+    os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
+    with open(os_path, "wb") as f:
+        f.write(data)
+    return True
 
 
 def cmd_dnl(user: User, fname: str) -> Tuple[bool, bytes]:
-    pass
+    __create_home(user)
+    os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
+    with open(os_path, "rb") as f:
+        ret = f.read()
+    return True, ret
