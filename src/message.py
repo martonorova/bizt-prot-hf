@@ -21,7 +21,7 @@ class MessageType(Enum):
     DOWNLOAD_RES_0 = bytes.fromhex("03 10")
     DOWNLOAD_RES_1 = bytes.fromhex("03 11")
 
-class Header(objcet):
+class Header(object):
     def __init__(self, ver: bytes, typ: MessageType, len: int, sqn: int, rnd: bytes, rsv: bytes):
         self.ver : bytes = ver
         self.typ : MessageType = typ
@@ -82,13 +82,14 @@ class Message(object):
             self.etk
 
     @classmethod
-    def deserialize(cls, raw_message: bytes, login_req: bool = False) -> 'Message': # < python 3.7, use a string
+    def deserialize(cls, raw_message: bytes) -> 'Message': # < python 3.7, use a string
         if len(raw_message) < HDR_LEN:
             raise ValueError("raw_message is shorter than header length")
 
         h = deserialize(raw_message[:HDR_LEN])
 
-        if login_req:
+        # if login request
+        if h.typ == MessageType.LOGIN_REQ:
             epd = raw_message[HDR_LEN:-MAC_LEN-ETK_LEN]
             mac = raw_message[-MAC_LEN-ETK_LEN:-ETK_LEN]
             etk = raw_message[-ETK_LEN]
