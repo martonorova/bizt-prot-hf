@@ -20,19 +20,15 @@ class MessageType(Enum):
     DOWNLOAD_REQ = bytes.fromhex("03 00")
     DOWNLOAD_RES_0 = bytes.fromhex("03 10")
     DOWNLOAD_RES_1 = bytes.fromhex("03 11")
-    
 
-class Message(object):
-    def __init__(self):
-        self.ver : bytes = bytes.fromhex("01 00")
-        self.typ : MessageType = None
-        self.len : int = 0
-        self.sqn : int = 0
-        self.rnd : bytes = b''
-        self.rsv : bytes = bytes.fromhex("00 00")
-        self.epd : bytes = b''
-        self.mac : bytes = b''
-        self.etk : bytes = None
+class Header(objcet):
+    def __init__(self, ver: bytes, typ: MessageType, len: int, sqn: int, rnd: bytes, rsv: bytes):
+        self.ver : bytes = ver
+        self.typ : MessageType = typ
+        self.len : int = len
+        self.sqn : int = len
+        self.rnd : bytes = rnd
+        self.rsv : bytes = rsv
 
     def serialize(self) -> bytes:
         return self.ver + \
@@ -40,7 +36,47 @@ class Message(object):
             self.len.to_bytes(2, 'big') + \
             self.sqn.to_bytes(2, 'big') + \
             self.rnd + \
-            self.rsv + \
+            self.rsv
+
+    @classmethod
+    def deserialize(cls, raw_header: bytes) -> 'Header':
+        if len(raw_message) < HDR_LEN:
+            raise ValueError("raw_header is shorter than header length")
+
+        # version
+        ver = raw_message[:2]
+        if ver != bytes.fromhex("01 00"):
+            raise ValueError(f"[DESERIALIZE_FAILED] invalid version: {ver}")
+        
+        # type
+        try:
+            typ = MessageType(raw_message[2:4])
+        except ValueError:
+            traceback.print_exc()
+            raise ValueError(f"[DESERIALIZE_FAILED]")
+        # message length
+        len = int.from_bytes(raw_message[4:6], 'big')
+        # message sequence number
+        sqn = int.from_bytes(raw_message[6:8], 'big')
+        # random
+        rnd = raw_message[8:14]
+        # reserved field
+        rsv = raw_message[14:16]
+        if rsv != bytes.fromhex("00 00"):
+            raise ValueError(f"[DESERIALIZE_FAILED] invalid reserved field: {rsv}")
+
+        return Header()
+
+
+class Message(object):
+    def __init__(self, header: Header, epd: bytes, mac: bytes, etk: bytes = None):
+        self.header : Header = header 
+        self.epd : bytes = epd
+        self.mac : bytes = mac
+        self.etk : bytes = etk
+
+    def serialize(self) -> bytes:
+        return self.header.serialize() + \
             self.epd + \
             self.mac + \
             self.etk
@@ -50,38 +86,18 @@ class Message(object):
         if len(raw_message) < HDR_LEN:
             raise ValueError("raw_message is shorter than header length")
 
-        m = Message()
-
-        # version
-        m.ver = raw_message[:2]
-        if m.ver != bytes.fromhex("01 00"):
-            raise ValueError(f"[DESERIALIZE_FAILED] invalid version: {m.ver}")
-        
-        # type
-        try:
-            m.typ = MessageType(raw_message[2:4])
-        except ValueError:
-            traceback.print_exc()
-            raise ValueError(f"[DESERIALIZE_FAILED]")
-        # message length
-        m.len = int.from_bytes(raw_message[4:6], 'big')
-        # message sequence number
-        m.sqn = int.from_bytes(raw_message[6:8], 'big')
-        # random
-        m.rnd = raw_message[8:14]
-        # reserved field
-        m.rsv = raw_message[14:16]
-        if m.rsv != bytes.fromhex("00 00"):
-            raise ValueError(f"[DESERIALIZE_FAILED] invalid reserved field: {m.rsv}")
+        h = deserialize(raw_message[:HDR_LEN])
 
         if login_req:
-            m.epd = raw_message[HDR_LEN:-MAC_LEN-ETK_LEN]
-            m.mac = raw_message[-MAC_LEN-ETK_LEN:-ETK_LEN]
-            m.etk = raw_message[-ETK_LEN]
+            epd = raw_message[HDR_LEN:-MAC_LEN-ETK_LEN]
+            mac = raw_message[-MAC_LEN-ETK_LEN:-ETK_LEN]
+            etk = raw_message[-ETK_LEN]
         else:
-            m.epd = raw_message[HDR_LEN:-MAC_LEN]
-            m.mac = raw_message[-MAC_LEN:]
-            m.etk = None
+            epd = raw_message[HDR_LEN:-MAC_LEN]
+            mac = raw_message[-MAC_LEN:]
+            etk = None
+        
+        message = Message(h, epd, mac, etk)
 
         # TODO validate message
 
@@ -90,7 +106,7 @@ class Message(object):
         return message
 
     def validate_len(self, raw: bytes):
-        if self.m.len != len(raw):
+        if self.header.len != len(raw):
             raise ValueError(f"[VALIDATION_FAILED] Message length error") 
         pass
 
