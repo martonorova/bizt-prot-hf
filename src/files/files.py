@@ -1,20 +1,16 @@
+import imp
 import os
 from os.path import exists
 import shutil
 from typing import Tuple
+from users import User
 
 #import files as f
 #u1 = f.User('Alice')
 #u2 = f.User('Bob')
 #f.app_root = 'F:/UNI/BiztProt/NHF/bizt-prot-hf/src/files'
 
-class User:
-    def __init__(self, name) -> None:
-        self.name = name
-        self.pwd = []
-
 app_root = ""
-
 
 def __os_path_prefix(user: User) -> str:
     return f'{app_root}/data/{user.name}/'
@@ -44,7 +40,6 @@ def __create_home(user: User) -> None:
     os_path = __os_path_prefix(user)
     if not exists(os_path):
         os.makedirs(os_path)
-
 
 
 def cmd_pwd(user: User) -> str:
@@ -87,6 +82,7 @@ def cmd_del(user: User, path: str) -> bool:
     else:
         return False
     return True
+
 
 def cmd_upl(user: User, fname: str, data: bytes) -> bool:
     __create_home(user)
