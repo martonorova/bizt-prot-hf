@@ -6,6 +6,7 @@ from users import User
 import users
 from files import cmd_chd, cmd_lst, cmd_del, cmd_dnl, cmd_mkd, cmd_pwd, upload, download
 from crypto_helpers import *
+from math import ceil
 
 class States(Enum):
     Connecting = 0
@@ -103,7 +104,20 @@ class SessionSM:
         if not(type is MessageType.DOWNLOAD_REQ):
             raise Exception('Invalid MessageType')
         state_data: str = self.__state_data
-        pass
+        payload = payload.decode('UTF-8')
+        if not(payload is 'Ready' or payload is 'Cancel'):
+            raise Exception('Invalid params')
+
+        if payload == 'Ready':
+            data = download(self.__session.user, state_data)
+            fragments = ceil(len(data) / 1024)
+            for i in range(fragments):
+                fragment = data[i*1024:i*1024+1024]
+                response_type = fragments == i+1 if MessageType.DOWNLOAD_RES_1 else MessageType.DOWNLOAD_RES_0
+                # TODO send fragment
+        
+        self.__state_data = None
+        self.__state = States.AwaitingCommands
 
 
     def __cph__pwd(self, params: list[str]):
