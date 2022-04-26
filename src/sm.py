@@ -8,6 +8,7 @@ from files import cmd_chd, cmd_lst, cmd_del, cmd_dnl, cmd_mkd, cmd_pwd, upload, 
 from crypto_helpers import *
 from math import ceil
 from Crypto import Random
+import options
 
 class States(Enum):
     Connecting = 0
@@ -16,8 +17,7 @@ class States(Enum):
     Uploading = 5
 
 
-# 10s
-ts_diff_threshold = 10
+ts_diff_threshold = options.ts_diff_threshold
 __ts_diff_threshold_ps = 1000*1000*1000*0.5 * ts_diff_threshold
 
 class SessionSM:

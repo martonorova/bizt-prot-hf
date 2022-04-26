@@ -1,12 +1,10 @@
 import argon2
-import binascii
 from typing import Tuple, Union
 from os.path import exists
-import hashlib
-import uuid
 from os import makedirs
+import options
 
-app_root = ""
+app_root = options.app_root
 __argon2Hasher = argon2.PasswordHasher(
     time_cost=16, memory_cost=2**15, parallelism=2, hash_len=32, salt_len=16)
 

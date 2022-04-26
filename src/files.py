@@ -1,17 +1,16 @@
-import imp
 import os
 from os.path import exists
 import shutil
 from typing import Tuple
 from users import User
 from crypto_helpers import *
+import options
 
 #import files as f
 #u1 = f.User('Alice')
 #u2 = f.User('Bob')
-#f.app_root = 'F:/UNI/BiztProt/NHF/bizt-prot-hf/src/files'
 
-app_root = ""
+app_root = options.app_root
 
 def __os_path_prefix(user: User) -> str:
     return f'{app_root}/data/{user.name}/'
