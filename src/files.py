@@ -4,6 +4,7 @@ from os.path import exists
 import shutil
 from typing import Tuple
 from users import User
+from crypto_helpers import *
 
 #import files as f
 #u1 = f.User('Alice')
@@ -88,17 +89,35 @@ def cmd_del(user: User, path: str) -> bool:
     return True
 
 
-def cmd_upl(user: User, fname: str, data: bytes) -> bool:
-    __create_home(user)
-    os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
-    with open(os_path, "wb") as f:
-        f.write(data)
-    return True
+def cmd_upl(user: User, fname: str, data: bytes) -> int:
+    pass
+
+# returns: size, sha256
+def cmd_dnl(user: User, fname: str) -> Tuple[str, str]:
+    data = download(user, fname)
+    if data:
+        return len(data), sha256(data)
+    else:
+        return None
 
 
-def cmd_dnl(user: User, fname: str) -> Tuple[bool, bytes]:
+def upload(user: User, fname: str, data: bytes) -> bool:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
-    with open(os_path, "rb") as f:
-        ret = f.read()
-    return True, ret
+    try:
+        with open(os_path, "wb") as f:
+            f.write(data)
+        return True
+    except:
+        return False
+
+
+def download(user: User, fname: str) -> bytes:
+    __create_home(user)
+    os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
+    try:
+        with open(os_path, "rb") as f:
+            ret = f.read()
+        return ret
+    except:
+        return None

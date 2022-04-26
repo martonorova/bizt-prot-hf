@@ -99,10 +99,18 @@ class SessionSM:
             return ['fail']
 
     def __hc__upl(self, params: list[str]):
-        pass
+        #TODO
+        if None:
+            return ['accept']
+        else:
+            return ['reject']
 
     def __hc__dnl(self, params: list[str]):
-        pass
+        data = cmd_dnl(self.__session.user, params[0])
+        if data:
+            return ['accept', *data]
+        else:
+            return ['reject']
 
     def __handle_command(self, type: MessageType, payload: bytes) -> bytes:
         lines = payload.decode('UTF-8').split('\n')
