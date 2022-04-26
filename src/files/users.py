@@ -1,3 +1,5 @@
+import argon2
+import binascii
 from dataclasses import dataclass
 from typing import Tuple, Union
 from os.path import exists
@@ -6,51 +8,48 @@ import uuid
 from os import makedirs
 
 app_root = ""
+__argon2Hasher = argon2.PasswordHasher(
+    time_cost=16, memory_cost=2**15, parallelism=2, hash_len=32, salt_len=16)
 
 # import users
 # users.app_root = 'D:/pyc'
 # users.__create_home()
-# users.add_user('alice', 'aaa')
-# users.add_user('bob', 'bbb')
-# users.add_user('charlie', 'ccc')
+# users.add_user_unsafe('alice', 'aaa')
+# users.add_user_unsafe('bob', 'bbb')
+# users.add_user_unsafe('charlie', 'ccc')
 
 @dataclass
 class User:
     name: str
     pwd: list[str]
 
-
 def __create_home() -> None:
     os_path = f'{app_root}'
     if not exists(os_path):
         makedirs(os_path)
 
-def __check_password(hash: str, passwd: str, salt: str) -> str:
-    return hash == hashlib.sha512(passwd.encode('utf-8') + salt.encode('utf-8')).hexdigest()
+def __check_password(hash_line: str, passwd: str) -> bool:
+    try:
+        __argon2Hasher.verify(hash_line, passwd)
+        return True
+    except:
+        return False
 
 # Does not check if user already exists
-def add_user(user: str, passwd: str) -> None:
-    salt = uuid.uuid4().hex
-    hash = hashlib.sha512(passwd.encode('utf-8') + salt.encode('utf-8')).hexdigest()
+def add_user_unsafe(user: str, passwd: str) -> None:
+    hash_line = __argon2Hasher.hash(passwd)
     os_path = f'{app_root}/users'
     with open(os_path, "a") as f:
-        f.write(f'{user}${salt}${hash}\n')
+        f.write(f'{user}:{hash_line}\n')
 
 def authenticate(name: str, passwd: str) -> Union[User, None]:
     os_path = f'{app_root}/users'
     with open(os_path, "r") as f:
         while True:
             line = f.readline().rstrip()
-            split = line.split('$', 2)
+            split = line.split(':', 1)
             if split[0] == name:
-                if __check_password(split[2], passwd, split[1]):
+                if __check_password(split[1], passwd):
                     return User(name=name, pwd=[])
             if not line:
                 break
-
-
-app_root = 'D:/pyc'
-add_user('alice', 'aaa')
-add_user('bob', 'bbb')
-add_user('charlie', 'ccc')
-authenticate('alice', 'aaa')
