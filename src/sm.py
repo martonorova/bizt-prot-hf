@@ -120,7 +120,7 @@ class SessionSM:
             fragments = ceil(len(data) / 1024)
             for i in range(fragments):
                 fragment = data[i*1024:i*1024+1024]
-                response_type = fragments == i+1 if MessageType.DOWNLOAD_RES_1 else MessageType.DOWNLOAD_RES_0
+                response_type = MessageType.DOWNLOAD_RES_1 if fragments == i+1 else MessageType.DOWNLOAD_RES_0
                 message = self.__session.encrypt(response_type, fragment)
                 #TODO send message to client
 
