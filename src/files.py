@@ -69,7 +69,11 @@ def cmd_chd(user: User, path: str) -> bool:
 def cmd_mkd(user: User, path: str) -> bool:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(__parse_path(user, path))
-    os.mkdir(os_path)
+    try:
+        os.mkdir(os_path)
+        return True
+    except:
+        return False
 
 
 def cmd_del(user: User, path: str) -> bool:

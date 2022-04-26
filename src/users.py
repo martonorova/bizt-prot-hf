@@ -1,6 +1,5 @@
 import argon2
 import binascii
-from dataclasses import dataclass
 from typing import Tuple, Union
 from os.path import exists
 import hashlib
@@ -18,10 +17,11 @@ __argon2Hasher = argon2.PasswordHasher(
 # users.add_user_unsafe('bob', 'bbb')
 # users.add_user_unsafe('charlie', 'ccc')
 
-@dataclass
+
 class User:
-    name: str
-    pwd: list[str]
+    def __init__(self, name) -> None:
+        self.name = name
+        self.pwd = []
 
 def __create_home() -> None:
     os_path = f'{app_root}'
@@ -42,7 +42,7 @@ def add_user_unsafe(user: str, passwd: str) -> None:
     with open(os_path, "a") as f:
         f.write(f'{user}:{hash_line}\n')
 
-def authenticate(name: str, passwd: str) -> Union[User, None]:
+def authenticate(name: str, passwd: str) -> bool:
     os_path = f'{app_root}/users'
     with open(os_path, "r") as f:
         while True:
@@ -50,6 +50,7 @@ def authenticate(name: str, passwd: str) -> Union[User, None]:
             split = line.split(':', 1)
             if split[0] == name:
                 if __check_password(split[1], passwd):
-                    return User(name=name, pwd=[])
+                    return True
             if not line:
                 break
+    return False
