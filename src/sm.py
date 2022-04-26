@@ -28,13 +28,14 @@ class SessionSM:
             States.Downloading: self.__download_protocol_handler,
             States.Uploading: self.__upload_protocol_handler
         }
+        self.__state_data = None
 
     def receive_message(self, type: MessageType, payload: bytes):
         self.__state_chart[self.__state](type, payload)
         # TODO
         return
 
-    def __login_protocol_handler(self, type: MessageType, payload: bytes):
+    def __login_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if type is not MessageType.LOGIN_REQ:
             raise Exception('Invalid MessageType')
 
@@ -56,11 +57,9 @@ class SessionSM:
 
         self.__session.user = User(username)
         self.__state = States.AwaitingCommands
-        # TODO: send response to client
-        return
+        # TODO: send response to client        
 
-
-    def __command_protocol_handler(self, type: MessageType, payload: bytes) -> bytes:
+    def __command_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if type is not MessageType.COMMAND_REQ:
             raise Exception('Invalid MessageType')
 
@@ -75,19 +74,35 @@ class SessionSM:
         cmd_hash = sha256(payload)
         response_payload_lines = [cmd, cmd_hash] + fn_results
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
-        return response_payload
+        #TODO send response_payload
 
-
-    def __upload_protocol_handler(self, type: MessageType, payload: bytes) -> bytes:
+    def __upload_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if not(type is MessageType.UPLOAD_REQ_0 or type is MessageType.UPLOAD_REQ_1):
             raise Exception('Invalid MessageType')
-        #TODO
-        pass
+        state_data: UploadData = self.__state_data
 
-    def __download_protocol_handler(self, type: MessageType, payload: bytes) -> bytes:
+        state_data.buffer += payload
+
+        if type is MessageType.UPLOAD_REQ_0:
+            if len(payload) is not 1024:
+                raise Exception('Invalid fragment size')
+
+        if type is MessageType.UPLOAD_REQ_1:
+            if len(payload) > 1024:
+                raise Exception('Invalid fragment size')
+            if not state_data.validate():
+                raise Exception('Invalid uploaded file')                
+            upload(self.__session.user, state_data.file_name, state_data.buffer)
+            self.__state_data = None
+            self.__state = States.AwaitingCommands            
+            response_payload_lines = [state_data.file_hash, state_data.file_size]
+            response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
+            #TODO send response_payload
+
+    def __download_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if not(type is MessageType.DOWNLOAD_REQ):
             raise Exception('Invalid MessageType')
-        #TODO
+        state_data: str = self.__state_data
         pass
 
 
@@ -126,14 +141,18 @@ class SessionSM:
             return ['fail']
 
     def __cph__upl(self, params: list[str]):
+        self.__state = States.Uploading
+        self.__state_data = UploadData(params)
         return ['accept']
 
     def __cph__dnl(self, params: list[str]):
         data = cmd_dnl(self.__session.user, params[0])
         if data:
+            self.__state = States.Downloading
+            self.__state_data = params[0]
             return ['accept', *data]
         else:
-            return ['reject']   
+            return ['reject']
 
     __cph__fn_chart = {
         'pwd': __cph__pwd,
@@ -145,3 +164,16 @@ class SessionSM:
         'dnl': __cph__dnl,
     }
 
+
+class UploadData():
+    def __init__(self, params: list[str]) -> None:
+        self.file_name = params[0]
+        self.file_size = params[1]
+        self.file_hash = params[2]
+        self.buffer: bytes = b''
+
+    def validate(self) -> bool:
+        return len(self.buffer) == self.file_size and sha256(self.buffer) == self.file_hash
+
+    def is_empty(self) -> bool:
+        return len(self.buffer) == 0
