@@ -6,7 +6,8 @@ class States(Enum):
     Connected = 2
 
 class SessionSM:
-    def __init__(self) -> None:
+    def __init__(self, session) -> None:
+        self.__session = session
         self.__state = States.NotConnected
         self.__state_chart = {
             States.NotConnected: self.__handle_in_not_connected,
@@ -14,16 +15,15 @@ class SessionSM:
             States.Connected: self.__handle_in_connected
         }
 
-    def receive_message(self, message):
-        self.__state_chart[self.__state](message)
+    def receive_message(self, type, payload):
+        self.__state_chart[self.__state](type, payload)
 
-
-    def __handle_in_not_connected(self, message):
+    def __handle_in_not_connected(self, type, payload):
         pass
 
-    def __handle_in_connecting(self, message):
+    def __handle_in_connecting(self, type, payload):
         pass
 
-    def __handle_in_connected(self, message):
+    def __handle_in_connected(self, type, payload):
         pass
 
