@@ -7,6 +7,7 @@ import users
 from files import cmd_chd, cmd_lst, cmd_del, cmd_dnl, cmd_mkd, cmd_pwd, upload, download
 from crypto_helpers import *
 from math import ceil
+from Crypto import Random
 
 class States(Enum):
     Connecting = 0
@@ -58,7 +59,11 @@ class SessionSM:
 
         self.__session.user = User(username)
         self.__state = States.AwaitingCommands
-        # TODO: send response to client        
+
+        response_payload_lines = [sha256(payload), Random.get_random_bytes(16)]
+        response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
+        message = self.__session.encrypt(MessageType.LOGIN_RES, response_payload)
+        #TODO send message back to client
 
     def __command_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if type is not MessageType.COMMAND_REQ:
@@ -75,7 +80,8 @@ class SessionSM:
         cmd_hash = sha256(payload)
         response_payload_lines = [cmd, cmd_hash] + fn_results
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
-        #TODO send response_payload
+        message = self.__session.encrypt(MessageType.COMMAND_RES, response_payload)
+        #TODO send message back to client
 
     def __upload_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if not(type is MessageType.UPLOAD_REQ_0 or type is MessageType.UPLOAD_REQ_1):
@@ -92,13 +98,14 @@ class SessionSM:
             if len(payload) > 1024:
                 raise Exception('Invalid fragment size')
             if not state_data.validate():
-                raise Exception('Invalid uploaded file')                
+                raise Exception('Invalid uploaded file')
             upload(self.__session.user, state_data.file_name, state_data.buffer)
             self.__state_data = None
-            self.__state = States.AwaitingCommands            
+            self.__state = States.AwaitingCommands
             response_payload_lines = [state_data.file_hash, state_data.file_size]
             response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
-            #TODO send response_payload
+            message = self.__session.encrypt(MessageType.UPLOAD_RES, response_payload)
+            #TODO send message back to client
 
     def __download_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if not(type is MessageType.DOWNLOAD_REQ):
@@ -114,8 +121,9 @@ class SessionSM:
             for i in range(fragments):
                 fragment = data[i*1024:i*1024+1024]
                 response_type = fragments == i+1 if MessageType.DOWNLOAD_RES_1 else MessageType.DOWNLOAD_RES_0
-                # TODO send fragment
-        
+                message = self.__session.encrypt(response_type, fragment)
+                #TODO send message to client
+
         self.__state_data = None
         self.__state = States.AwaitingCommands
 
