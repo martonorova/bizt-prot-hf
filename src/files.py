@@ -89,9 +89,6 @@ def cmd_del(user: User, path: str) -> bool:
     return True
 
 
-def cmd_upl(user: User, fname: str, data: bytes) -> int:
-    pass
-
 # returns: size, sha256
 def cmd_dnl(user: User, fname: str) -> Tuple[str, str]:
     data = download(user, fname)

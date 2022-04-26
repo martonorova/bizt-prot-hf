@@ -4,12 +4,14 @@ from message import MessageType
 from session import Session
 from users import User
 import users
-from files import cmd_chd, cmd_lst, cmd_del, cmd_dnl, cmd_mkd, cmd_pwd, cmd_upl
+from files import cmd_chd, cmd_lst, cmd_del, cmd_dnl, cmd_mkd, cmd_pwd, upload, download
 from crypto_helpers import *
 
 class States(Enum):
-    NotConnected = 0
-    Connected = 2
+    Connecting = 0
+    AwaitingCommands = 2
+    Downloading = 4
+    Uploading = 5
 
 
 # 10s
@@ -19,17 +21,20 @@ __ts_diff_threshold_ps = 1000*1000*1000*0.5 * ts_diff_threshold
 class SessionSM:
     def __init__(self, session: Session) -> None:
         self.__session = session
-        self.__state = States.NotConnected
+        self.__state = States.Connecting
         self.__state_chart = {
-            States.NotConnected: self.__handle_in_not_connected,
-            States.Connected: self.__handle_in_connected
+            States.Connecting: self.__login_protocol_handler,
+            States.AwaitingCommands: self.__command_protocol_handler,
+            States.Downloading: self.__download_protocol_handler,
+            States.Uploading: self.__upload_protocol_handler
         }
 
     def receive_message(self, type: MessageType, payload: bytes):
         self.__state_chart[self.__state](type, payload)
+        # TODO
         return
 
-    def __handle_in_not_connected(self, type: MessageType, payload: bytes):
+    def __login_protocol_handler(self, type: MessageType, payload: bytes):
         if type is not MessageType.LOGIN_REQ:
             raise Exception('Invalid MessageType')
 
@@ -50,76 +55,22 @@ class SessionSM:
             raise Exception('Invalid user:passwd pair')
 
         self.__session.user = User(username)
-        self.__state = States.Connected
+        self.__state = States.AwaitingCommands
         # TODO: send response to client
         return
 
-    def __handle_in_connected(self, type: MessageType, payload: bytes):
-        fn = self.__in_connected_fn_chart[type]
-        if fn is None:
+
+    def __command_protocol_handler(self, type: MessageType, payload: bytes) -> bytes:
+        if type is not MessageType.COMMAND_REQ:
             raise Exception('Invalid MessageType')
 
-        result = fn(type, payload)
-        # TODO: respond to sender
-        return
-
-
-    def __hc__pwd(self, params: list[str]):
-        if len(params) != 0:
-            raise Exception('Invalid params')
-        return ['success', cmd_pwd(self.__session.user)]
-
-    def __hc__lst(self, params: list[str]):
-        if len(params) != 0:
-            raise Exception('Invalid params')
-        return ['success', cmd_lst(self.__session.user)]
-
-    def __hc__chd(self, params: list[str]):
-        if len(params) != 1:
-            raise Exception('Invalid params')
-        if cmd_chd(self.__session.user, params[0]):
-            return ['success']
-        else:
-            return ['fail']
-
-    def __hc__mkd(self, params: list[str]):
-        if len(params) != 1:
-            raise Exception('Invalid params')
-        if cmd_mkd(self.__session.user, params[0]):
-            return ['success']
-        else:
-            return ['fail']
-
-    def __hc__del(self, params: list[str]):
-        if len(params) != 1:
-            raise Exception('Invalid params')
-        if cmd_del(self.__session.user, params[0]):
-            return ['success']
-        else:
-            return ['fail']
-
-    def __hc__upl(self, params: list[str]):
-        #TODO
-        if None:
-            return ['accept']
-        else:
-            return ['reject']
-
-    def __hc__dnl(self, params: list[str]):
-        data = cmd_dnl(self.__session.user, params[0])
-        if data:
-            return ['accept', *data]
-        else:
-            return ['reject']
-
-    def __handle_command(self, type: MessageType, payload: bytes) -> bytes:
         lines = payload.decode('UTF-8').split('\n')
         cmd = lines[0]
         params = lines[1:]
-        fn = self.__hc_fn_chart[cmd]
+        fn = self.__cph__fn_chart[cmd]
 
         if fn is None:
-            raise Exception('Invalid MessageType')
+            raise Exception('Invalid CommandType')
         fn_results = fn(params)
         cmd_hash = sha256(payload)
         response_payload_lines = [cmd, cmd_hash] + fn_results
@@ -127,30 +78,63 @@ class SessionSM:
         return response_payload
 
 
-    def __handle_upload_0(self, type: MessageType, payload: bytes) -> bytes:
+    def __upload_protocol_handler(self, type: MessageType, payload: bytes) -> bytes:
         pass
 
-    def __handle_upload_1(self, type: MessageType, payload: bytes) -> bytes:
+    def __download_protocol_handler(self, type: MessageType, payload: bytes) -> bytes:
         pass
 
-    def __handle_download(self, type: MessageType, payload: bytes) -> bytes:
-        pass
+    def __cph__pwd(self, params: list[str]):
+        if len(params) != 0:
+            raise Exception('Invalid params')
+        return ['success', cmd_pwd(self.__session.user)]
 
+    def __cph__lst(self, params: list[str]):
+        if len(params) != 0:
+            raise Exception('Invalid params')
+        return ['success', cmd_lst(self.__session.user)]
 
-    __hc_fn_chart = {
-        'pwd': __hc__pwd,
-        'lst': __hc__lst,
-        'chd': __hc__chd,
-        'mkd': __hc__mkd,
-        'del': __hc__del,
-        'upl': __hc__upl,
-        'dnl': __hc__dnl,
-    }
+    def __cph__chd(self, params: list[str]):
+        if len(params) != 1:
+            raise Exception('Invalid params')
+        if cmd_chd(self.__session.user, params[0]):
+            return ['success']
+        else:
+            return ['fail']
 
-    __in_connected_fn_chart = {
-        MessageType.COMMAND_REQ: __handle_command,
-        MessageType.UPLOAD_REQ_0: __handle_upload_0,
-        MessageType.UPLOAD_REQ_1: __handle_upload_1,
-        MessageType.DOWNLOAD_REQ: __handle_download,
+    def __cph__mkd(self, params: list[str]):
+        if len(params) != 1:
+            raise Exception('Invalid params')
+        if cmd_mkd(self.__session.user, params[0]):
+            return ['success']
+        else:
+            return ['fail']
+
+    def __cph__del(self, params: list[str]):
+        if len(params) != 1:
+            raise Exception('Invalid params')
+        if cmd_del(self.__session.user, params[0]):
+            return ['success']
+        else:
+            return ['fail']
+
+    def __cph__upl(self, params: list[str]):
+        return ['accept']
+
+    def __cph__dnl(self, params: list[str]):
+        data = cmd_dnl(self.__session.user, params[0])
+        if data:
+            return ['accept', *data]
+        else:
+            return ['reject']   
+
+    __cph__fn_chart = {
+        'pwd': __cph__pwd,
+        'lst': __cph__lst,
+        'chd': __cph__chd,
+        'mkd': __cph__mkd,
+        'del': __cph__del,
+        'upl': __cph__upl,
+        'dnl': __cph__dnl,
     }
 
