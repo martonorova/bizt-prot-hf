@@ -79,10 +79,17 @@ class SessionSM:
 
 
     def __upload_protocol_handler(self, type: MessageType, payload: bytes) -> bytes:
+        if not(type is MessageType.UPLOAD_REQ_0 or type is MessageType.UPLOAD_REQ_1):
+            raise Exception('Invalid MessageType')
+        #TODO
         pass
 
     def __download_protocol_handler(self, type: MessageType, payload: bytes) -> bytes:
+        if not(type is MessageType.DOWNLOAD_REQ):
+            raise Exception('Invalid MessageType')
+        #TODO
         pass
+
 
     def __cph__pwd(self, params: list[str]):
         if len(params) != 0:
