@@ -7,15 +7,16 @@ from Crypto import Random
 import selectors
 
 import logging
+from sm import SessionSM
+from users import User
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
 
 class Session(object):
     def __init__(self, selector, socket, addr):
-        self.user : str = '' # TODO use common User object
-        # self.state = TODO store protocol state
-        self.wd : str = '' # current working directory
+        self.user : User = None
+        self.sm: SessionSM = SessionSM(self)
         self.selector : DefaultSelector = selector
         self.socket = socket
         self.addr = addr
@@ -70,7 +71,8 @@ class Session(object):
             if len(self._recv_buffer) >= remaining_length:
                 try:
                     message = Message.deserialize(self._recv_buffer[:self._recv_len])
-                    self.decrypt_and_process(message)
+                    type, payload = self.decrypt_and_process(message)
+                    self.sm.receive_message(type, payload)
                 except Exception as e:
                     logging.error(
                         f"Error: Message.deserialize() exception for"
@@ -81,14 +83,14 @@ class Session(object):
                 finally:
                     # remove processed bytes from buffer
                     self._recv_buffer = self._recv_buffer[self._recv_len:]
-        
 
-                
+
+
     def process_header(self):
         if len(self._recv_buffer) >= HDR_LEN:
             # we can parse the length of the message
             self._recv_len = int.from_bytes(self._recv_buffer[4:6])
-    
+
     def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
 
         payload_length = len(payload)
@@ -122,7 +124,7 @@ class Session(object):
 
         # TODO handle login request decryption
 
-        loggin.debug("Attempt decryption and authentication tag verification...")
+        logging.debug("Attempt decryption and authentication tag verification...")
         nonce = message.header.sqn.to_bytes(2, byteorder='big') + message.header.rnd
         AE = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(message.header.serialize())
