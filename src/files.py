@@ -111,8 +111,12 @@ def upload(user: User, fname: str, data: bytes) -> bool:
 def download(user: User, fname: str) -> bytes:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
+    return get_file(os_path)
+
+
+def get_file(path):
     try:
-        with open(os_path, "rb") as f:
+        with open(path, "rb") as f:
             ret = f.read()
         return ret
     except:
