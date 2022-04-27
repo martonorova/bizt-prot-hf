@@ -1,6 +1,6 @@
 from enum import Enum
 import time
-from common_data_classes import FileTransferData
+from common import ACCEPT, FAILURE, REJECT, SUCCESS, FileTransferData
 from message import MessageType
 from session import Session
 from users import User
@@ -132,50 +132,50 @@ class SessionSM:
     def __cph__pwd(self, params: list[str]):
         if len(params) != 0:
             raise Exception('Invalid params')
-        return ['success', cmd_pwd(self.__session.user)]
+        return [SUCCESS, cmd_pwd(self.__session.user)]
 
     def __cph__lst(self, params: list[str]):
         if len(params) != 0:
             raise Exception('Invalid params')
-        return ['success', cmd_lst(self.__session.user)]
+        return [SUCCESS, cmd_lst(self.__session.user)]
 
     def __cph__chd(self, params: list[str]):
         if len(params) != 1:
             raise Exception('Invalid params')
         if cmd_chd(self.__session.user, params[0]):
-            return ['success']
+            return [SUCCESS]
         else:
-            return ['fail']
+            return [FAILURE]
 
     def __cph__mkd(self, params: list[str]):
         if len(params) != 1:
             raise Exception('Invalid params')
         if cmd_mkd(self.__session.user, params[0]):
-            return ['success']
+            return [SUCCESS]
         else:
-            return ['fail']
+            return [FAILURE]
 
     def __cph__del(self, params: list[str]):
         if len(params) != 1:
             raise Exception('Invalid params')
         if cmd_del(self.__session.user, params[0]):
-            return ['success']
+            return [SUCCESS]
         else:
-            return ['fail']
+            return [FAILURE]
 
     def __cph__upl(self, params: list[str]):
         self.__state = States.Uploading
         self.__state_data = FileTransferData(params)
-        return ['accept']
+        return [ACCEPT]
 
     def __cph__dnl(self, params: list[str]):
         data = cmd_dnl(self.__session.user, params[0])
         if data:
             self.__state = States.Downloading
             self.__state_data = params[0]
-            return ['accept', *data]
+            return [ACCEPT, *data]
         else:
-            return ['reject']
+            return [REJECT]
 
     __cph__fn_chart = {
         'pwd': __cph__pwd,
