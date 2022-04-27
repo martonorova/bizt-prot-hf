@@ -72,10 +72,10 @@ class SessionSM:
         lines = payload.decode('UTF-8').split('\n')
         cmd = lines[0]
         params = lines[1:]
-        fn = self.__cph__fn_chart[cmd]
-
+        fn = self.__cph__fn_chart.get(cmd)
         if fn is None:
             raise Exception('Invalid CommandType')
+            
         fn_results = fn(params)
         cmd_hash = sha256(payload)
         response_payload_lines = [cmd, cmd_hash] + fn_results
