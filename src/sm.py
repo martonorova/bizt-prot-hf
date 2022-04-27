@@ -1,5 +1,6 @@
 from enum import Enum
 import time
+from common_data_classes import FileTransferData
 from message import MessageType
 from session import Session
 from users import User
@@ -86,7 +87,7 @@ class SessionSM:
     def __upload_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if not(type is MessageType.UPLOAD_REQ_0 or type is MessageType.UPLOAD_REQ_1):
             raise Exception('Invalid MessageType')
-        state_data: UploadData = self.__state_data
+        state_data: FileTransferData = self.__state_data
 
         state_data.buffer += payload
 
@@ -164,7 +165,7 @@ class SessionSM:
 
     def __cph__upl(self, params: list[str]):
         self.__state = States.Uploading
-        self.__state_data = UploadData(params)
+        self.__state_data = FileTransferData(params)
         return ['accept']
 
     def __cph__dnl(self, params: list[str]):
@@ -185,15 +186,4 @@ class SessionSM:
         'upl': __cph__upl,
         'dnl': __cph__dnl,
     }
-
-
-class UploadData():
-    def __init__(self, params: list[str]) -> None:
-        self.file_name = params[0]
-        self.file_size = params[1]
-        self.file_hash = params[2]
-        self.buffer: bytes = b''
-
-    def validate(self) -> bool:
-        return len(self.buffer) == self.file_size and sha256(self.buffer) == self.file_hash
 
