@@ -5,6 +5,9 @@ import traceback
 import logging
 
 import session
+import time
+
+from message import MessageType
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
@@ -13,10 +16,13 @@ class Client:
         self.addr = (host, port)
         self.__session : session.Session = None
 
+        # TODO read in server public key from file
+
         self.__connect()
 
     def __del__(self):
-        self.__session.close()
+        if self.__session is not None:
+            self.__session.close()
 
     def __connect(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -25,7 +31,8 @@ class Client:
         self.__session = session.Session(sock)
 
     def __send(self, data: bytes):
-        self.__session.send(data)
+        logging.debug(f"Attempting to send {data}")
+        self.__session.send(MessageType.COMMAND_REQ ,data)
 
     def __receive(self) -> bytes:
         return self.__session.receive()
@@ -38,6 +45,10 @@ class Client:
 
 client = Client("localhost", 5150)
 
-res = client.make_req_sync(b'hello server')
+res = client.make_req_sync(b'hello server 1')
 
+print(res)
+
+time.sleep(5)
+res = client.make_req_sync(b'hello server 2')
 print(res)

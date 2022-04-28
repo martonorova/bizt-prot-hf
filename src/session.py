@@ -22,25 +22,41 @@ class Session(object):
 
     # def send(self, m: Message):
     #     pass
-    def send(self, data : bytes):
-        self.socket.sendall(data)
+    def send(self, message_type: MessageType, data : bytes):
+        logging.debug(f"Sending invoked with MessageType: {message_type}, payload: {data}")
+        # self.socket.sendall(data)
+        message = self.encrypt(message_type, data)
 
-    def receive(self) -> bytes:
-        data = self.socket.recv(1024)
-        return data
+        logging.debug(f"Message: f{message}")
 
-    def _read(self):
+        self.socket.sendall(message.serialize())
+
+        
+
+    def receive(self) -> (MessageType, bytes):
+        data = self.socket.recv(1024) # TODO read based on header length field
+        if len(data) == 0:
+            raise Exception("Read empty data from socket")
+        # if data: # on connection, data is empty --> ignore it
+        message = Message.deserialize(data)
+        message_type, payload = self.decrypt(message)
+        logging.debug(f"Received payload: {payload.decode('UTF-8')}")
+
+        return message_type, payload
+
+        # return None, b''
+
+    def process(self, message_type: MessageType, payload: bytes):
+        # send message and payload to business logic
         try:
-            # should be ready to read as we received event
-            data = self.socket.recv(1024)
-        except BlockingIOError:
-            # Resource temporarily unavailable (errno EWOULDBLOCK)
-            pass
-        else:
-            if data:
-                self._recv_buffer += data
-            else:
-                raise RuntimeError("Peer closed.")
+            self.sm.receive_message(message_type, payload)
+        except Exception as e:
+            logging.error(
+                f'Error occured'
+                f'{e!r}'
+            )
+
+
 
     # def process_events(self, mask):
     #     if mask & selectors.EVENT_READ:
@@ -63,7 +79,7 @@ class Session(object):
     #         if len(self._recv_buffer) >= remaining_length:
     #             try:
     #                 message = Message.deserialize(self._recv_buffer[:self._recv_len])
-    #                 message_type, payload = self.decrypt_and_process(message)
+    #                 message_type, payload = self.decrypt(message)
     #                 self.sm.receive_message(message_type, payload)
     #             except Exception as e:
     #                 logging.error(
@@ -87,12 +103,13 @@ class Session(object):
 
         payload_length = len(payload)
         msg_length = HDR_LEN + payload_length + MAC_LEN
+
         self.sqn += 1
 
         header = Header(
             ver=b'\x01\x00',
             typ=typ,
-            len=msg_length,
+            length=msg_length,
             sqn=self.sqn,
             rnd=Random.get_random_bytes(6),
             rsv=b'\x00\x00'
@@ -105,13 +122,13 @@ class Session(object):
 
         return Message(header, encrypted_payload, authtag)
 
-    def decrypt_and_process(self, message: Message):
+    def decrypt(self, message: Message) -> (MessageType, bytes):
         # length check already happend during deserialization
 
         # validate sequence number
         logging.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
         if (message.header.sqn <= self.sqn):
-            raise ValueError("Message sequence number is too old!")
+            raise ValueError(f"Message sequence number is too old: {message.header.sqn}!")
         logging.debug(f"Sequence number verification is successful.")
 
         # TODO handle login request decryption
@@ -128,13 +145,9 @@ class Session(object):
             raise e
         logging.debug("Operation was successful: message is intact, content is decrypted")
 
-        # TODO process payload based on MessageType
-        logging.info(f"Received payload: {payload.decode('UTF-8')}")
-
-        # TODO reset state related to reading from the socket
-
-        # Set selector to listen for write events, we're done reading.
-        self._set_selector_events_mask("w")
+        self.sqn = message.header.sqn
+        
+        return (message.header.typ, payload)
 
     def close(self):
         logging.info(f"Closing connection")
