@@ -20,8 +20,6 @@ class Session(object):
         self.key : bytes = bytes.fromhex("00" * 32) # the symmetric key TODO set this with Login Protocol
         self.temp_key : bytes = b'' # temporary key in login sequence
 
-    # def send(self, m: Message):
-    #     pass
     def send(self, message_type: MessageType, data : bytes):
         logging.debug(f"Sending invoked with MessageType: {message_type}, payload: {data}")
         # self.socket.sendall(data)
@@ -42,8 +40,6 @@ class Session(object):
         logging.debug(f"Received payload: {payload.decode('UTF-8')}")
 
         return message_type, payload
-
-        # return None, b''
 
     def process(self, message_type: MessageType, payload: bytes):
         # send message and payload to business logic
@@ -122,7 +118,7 @@ class Session(object):
         return Message(header, encrypted_payload, authtag)
 
     def decrypt(self, message: Message) -> (MessageType, bytes):
-        # length check already happend during deserialization
+        # length check already happened during deserialization
 
         # validate sequence number
         logging.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
