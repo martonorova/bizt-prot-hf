@@ -16,3 +16,6 @@ SUCCESS = 'success'
 ACCEPT = 'accept'
 REJECT = 'reject'
 FAILURE = 'failure'
+
+READY = 'Ready'
+CANCEL = 'Cancel'

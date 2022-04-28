@@ -8,7 +8,7 @@ from crypto_helpers import *
 from math import ceil
 from Crypto import Random
 import options
-from common import ACCEPT, FAILURE, REJECT, SUCCESS, FileTransferData
+from common import ACCEPT, FAILURE, REJECT, SUCCESS, FileTransferData, READY, CANCEL
 
 class States(Enum):
     Unauthorized = 0
@@ -112,8 +112,8 @@ class ClientSessionSM:
             raise Exception('Invalid response payload')
         if results[0] == ACCEPT:
             self.__state = States.Uploading
+            print('Started upload')
             self.__proceed_upload()
-            print('Success')
         else:
             print('Request failed')
             self.__state_data = None
@@ -123,7 +123,8 @@ class ClientSessionSM:
             raise Exception('Invalid response payload')
         if results[0] == ACCEPT:
             self.__state = States.Downloading
-            print('Success')
+            print('Started download')
+            self.__proceed_download()
         else:
             print('Request failed')
             self.__state_data = None
@@ -146,8 +147,11 @@ class ClientSessionSM:
 
         lines = payload.decode('UTF-8').split('\n')
         state_data: FileTransferData = self.state_data
-        if not(lines[0] == state_data.file_hash and lines[1] == state_data.file_size)
+        if not(lines[0] == state_data.file_hash and lines[1] == state_data.file_size):
             raise('Invalid hash after upload')
+        self.__state = States.Commanding
+        self.__state_data = None
+        print('Upload successful')
 
 
     def __proceed_upload(self):
@@ -165,6 +169,10 @@ class ClientSessionSM:
     def __download_protocol_handler(self, type: MessageType, payload: bytes):
         pass
         #TODO
+
+    def __proceed_download(self):
+        payload = ''
+        message = self.__session.encrypt(MessageType.DOWNLOAD_REQ, payload)
     # </region: Download Protocol>
 
 

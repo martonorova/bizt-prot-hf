@@ -1,6 +1,6 @@
 from enum import Enum
 import time
-from common import ACCEPT, FAILURE, REJECT, SUCCESS, FileTransferData
+from common import ACCEPT, FAILURE, REJECT, SUCCESS, FileTransferData, READY, CANCEL
 from message import MessageType
 from session import Session
 from users import User
@@ -117,10 +117,10 @@ class SessionSM:
             raise Exception('Invalid MessageType')
         state_data: str = self.__state_data
         payload = payload.decode('UTF-8')
-        if not(payload is 'Ready' or payload is 'Cancel'):
+        if not(payload is READY or payload is CANCEL):
             raise Exception('Invalid params')
 
-        if payload == 'Ready':
+        if payload == READY:
             data = download(self.__session.user, state_data)
             fragment_count = ceil(len(data) / 1024)
             for i in range(fragment_count):
