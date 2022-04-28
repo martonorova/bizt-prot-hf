@@ -1,43 +1,33 @@
 from message import Message, Header, MessageType, HDR_LEN, MAC_LEN
-from selectors import DefaultSelector
 
 from Crypto.Cipher import AES
 from Crypto import Random
 
-import selectors
-
+import socket
 import logging
-from sm import SessionSM
+import sm
 from users import User
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
 
 class Session(object):
-    def __init__(self, selector, socket, addr):
+    def __init__(self, socket: socket.socket):
         self.user : User = None
-        self.sm: SessionSM = SessionSM(self)
-        self.selector : DefaultSelector = selector
-        self.socket = socket
-        self.addr = addr
-        self._recv_buffer = b''
-        self._recv_len = -1 # length of message to wait for in _recv_buffer
-        self._send_buffer = b''
+        self.sm: sm.SessionSM = sm.SessionSM(self)
+        self.socket : socket.socket = socket
         self.sqn : int = 0 # sequence number
         self.key : bytes = bytes.fromhex("00" * 32) # the symmetric key TODO set this with Login Protocol
         self.temp_key : bytes = b'' # temporary key in login sequence
 
-    def _set_selector_events_mask(self, mode):
-        """Set selector to listen for events: mode is 'r', 'w', or 'rw'."""
-        if mode == "r":
-            events = selectors.EVENT_READ
-        elif mode == "w":
-            events = selectors.EVENT_WRITE
-        elif mode == "rw":
-            events = selectors.EVENT_READ | selectors.EVENT_WRITE
-        else:
-            raise ValueError(f"Invalid events mask mode {mode!r}.")
-        self.selector.modify(self.socket, events, data=self)
+    # def send(self, m: Message):
+    #     pass
+    def send(self, data : bytes):
+        self.socket.sendall(data)
+
+    def receive(self) -> bytes:
+        data = self.socket.recv(1024)
+        return data
 
     def _read(self):
         try:
@@ -52,44 +42,46 @@ class Session(object):
             else:
                 raise RuntimeError("Peer closed.")
 
-    def process_events(self, mask):
-        if mask & selectors.EVENT_READ:
-            self.read()
-        if mask & selectors.EVENT_WRITE:
-            self.write()
+    # def process_events(self, mask):
+    #     if mask & selectors.EVENT_READ:
+    #         logging.debug("EVENT_READ occured")
+    #         self.read()
+    #     if mask & selectors.EVENT_WRITE:
+    #         logging.debug("EVENT_WRITE occured")
+    #         self.write()
 
-    def read(self):
-        # read full header + remaining bytes based on header.len
-        self._read()
+    # def read(self):
+    #     # read full header + remaining bytes based on header.len
+    #     self._read()
 
-        # try to process the header
-        if self._recv_len < 0:
-            self.process_header()
-        else:
-            # try to process the rest of the message
-            remaining_length = self._recv_len - HDR_LEN
-            if len(self._recv_buffer) >= remaining_length:
-                try:
-                    message = Message.deserialize(self._recv_buffer[:self._recv_len])
-                    type, payload = self.decrypt_and_process(message)
-                    self.sm.receive_message(type, payload)
-                except Exception as e:
-                    logging.error(
-                        f"Error: Message.deserialize() exception for"
-                        f"{e!r}"
-                    )
-                    # we must close the connection on error
-                    self.close()
-                finally:
-                    # remove processed bytes from buffer
-                    self._recv_buffer = self._recv_buffer[self._recv_len:]
+    #     # try to process the header
+    #     if self._recv_len < 0:
+    #         self.process_header()
+    #     else:
+    #         # try to process the rest of the message
+    #         remaining_length = self._recv_len - HDR_LEN
+    #         if len(self._recv_buffer) >= remaining_length:
+    #             try:
+    #                 message = Message.deserialize(self._recv_buffer[:self._recv_len])
+    #                 message_type, payload = self.decrypt_and_process(message)
+    #                 self.sm.receive_message(message_type, payload)
+    #             except Exception as e:
+    #                 logging.error(
+    #                     f"Error: Message.deserialize() exception for"
+    #                     f"{e!r}"
+    #                 )
+    #                 # we must close the connection on error
+    #                 self.close()
+    #             finally:
+    #                 # remove processed bytes from buffer
+    #                 self._recv_buffer = self._recv_buffer[self._recv_len:]
 
 
 
     def process_header(self):
         if len(self._recv_buffer) >= HDR_LEN:
             # we can parse the length of the message
-            self._recv_len = int.from_bytes(self._recv_buffer[4:6])
+            self._recv_len = int.from_bytes(self._recv_buffer[4:6], byteorder='big')
 
     def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
 
@@ -145,19 +137,12 @@ class Session(object):
         self._set_selector_events_mask("w")
 
     def close(self):
-        logging.info(f"Closing connection to {self.addr}")
-        try:
-            self.selector.unregister(self.socket)
-        except Exception as e:
-            logging.error(
-                f"Error: selector.unregister() exception for "
-                f"{self.addr}: {e!r}"
-            )
+        logging.info(f"Closing connection")
 
         try:
             self.socket.close()
         except OSError as e:
-            logging.error(f"Error: socket.close() exception for {self.addr}: {e!r}")
+            logging.error(f"Error: socket.close() exception: {e!r}")
         finally:
             # Delete reference to socket object for garbage collection
             self.socket = None

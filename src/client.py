@@ -4,44 +4,40 @@ import selectors
 import traceback
 import logging
 
-from session import Session
+import session
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
+class Client:
+    def __init__(self, host, port):
+        self.addr = (host, port)
+        self.__session : session.Session = None
 
-sel = selectors.DefaultSelector()
+        self.__connect()
 
-host, port = '127.0.0.1', 5150
-addr = (host, port)
-logging.info(f"Starting connection to {addr}")
+    def __del__(self):
+        self.__session.close()
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.setblocking(False)
-sock.connect_ex(addr)
-events = selectors.EVENT_READ | selectors.EVENT_WRITE
-session = Session(sel, sock, addr)
-sel.register(sock, events, data=session)
+    def __connect(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(self.addr)
+        logging.debug("Client connected to server")
+        self.__session = session.Session(sock)
 
-# use selectors with stdin and a network socket
-# https://stackoverflow.com/questions/21791621/taking-input-from-sys-stdin-non-blocking
+    def __send(self, data: bytes):
+        self.__session.send(data)
 
-try:
-    while True:
-        events = sel.select(timeout=1)
-        for key, mask in events:
-            session = key.data
-            try:
-                session.process_events(mask)
-            except Exception:
-                print(
-                    f"Main: Error: Exception for {session.addr}:\n"
-                    f"{traceback.format_exc()}"
-                )
-                session.close()
-        # Check for a socket being monitored to continue.
-        if not sel.get_map():
-            break
-except KeyboardInterrupt:
-    print("Caught keyboard interrupt, exiting")
-finally:
-    sel.close()
+    def __receive(self) -> bytes:
+        return self.__session.receive()
+
+    # sends data and waits for response
+    def make_req_sync(self, data: bytes) -> bytes:
+        self.__send(data)
+        return self.__receive()
+
+
+client = Client("localhost", 5150)
+
+res = client.make_req_sync(b'hello server')
+
+print(res)

@@ -1,49 +1,34 @@
 import socket
-import selectors
 import traceback
 import logging
+import socketserver
 
-from session import Session
+import session
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
 
-sel = selectors.DefaultSelector()
+class TCPHandler(socketserver.BaseRequestHandler):
 
-def accept_wrapper(sock):
-    conn, addr = sock.accept()  # Should be ready to read
-    logging.info(f"Accepted connection from {addr}")
-    conn.setblocking(False)
-    session = Session(sel, conn, addr)
-    sel.register(conn, selectors.EVENT_READ, data=session)
+    def setup(self):
+        self.__session = session.Session(self.request)
 
-host, port = '127.0.0.1', 5150
-lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# Avoid bind() exception: OSError: [Errno 48] Address already in use
-lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-lsock.bind((host, port))
-lsock.listen()
-logging.info(f"Listening on {(host, port)}")
-lsock.setblocking(False)
-sel.register(lsock, selectors.EVENT_READ, data=None)
+    def handle(self):
 
-try:
-    while True:
-        events = sel.select(timeout=None)
-        for key, mask in events:
-            if key.data is None:
-                accept_wrapper(key.fileobj)
-            else:
-                session = key.data
-                try:
-                    session.process_events(mask)
-                except Exception:
-                    print(
-                        f"Main: Error: Exception for {session.addr}:\n"
-                        f"{traceback.format_exc()}"
-                    )
-                    session.close()
-except KeyboardInterrupt:
-    print("Caught keyboard interrupt, exiting")
-finally:
-    sel.close()
+        self.data = self.__session.receive()
+
+        # # self.request is the TCP socket connected to the client
+        # self.data = self.request.recv(1024).strip()
+        print("{} wrote:".format(self.client_address[0]))
+        print(self.data)
+        # just send back the same data, but upper-cased
+        self.request.sendall(self.data.upper())
+
+if __name__ == "__main__":
+    HOST, PORT = "localhost", 5150
+
+    # Create the server, binding to localhost on port 9999
+    with socketserver.TCPServer((HOST, PORT), TCPHandler) as server:
+        # Activate the server; this will keep running until you
+        # interrupt the program with Ctrl-C
+        server.serve_forever()
