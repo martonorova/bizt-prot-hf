@@ -118,10 +118,10 @@ class SessionSM:
 
         if payload == 'Ready':
             data = download(self.__session.user, state_data)
-            fragments = ceil(len(data) / 1024)
-            for i in range(fragments):
+            fragment_count = ceil(len(data) / 1024)
+            for i in range(fragment_count):
                 fragment = data[i*1024:i*1024+1024]
-                response_type = MessageType.DOWNLOAD_RES_1 if fragments == i+1 else MessageType.DOWNLOAD_RES_0
+                response_type = MessageType.DOWNLOAD_RES_1 if fragment_count == i+1 else MessageType.DOWNLOAD_RES_0
                 message = self.__session.encrypt(response_type, fragment)
                 #TODO send message to client
 
