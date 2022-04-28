@@ -100,8 +100,12 @@ def cmd_dnl(user: User, fname: str) -> Tuple[str, str]:
 def upload(user: User, fname: str, data: bytes) -> bool:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
+    save_file(os_path, data)
+
+
+def save_file(path: str, data: bytes):
     try:
-        with open(os_path, "wb") as f:
+        with open(path, "wb") as f:
             f.write(data)
         return True
     except:

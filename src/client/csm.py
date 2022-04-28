@@ -3,7 +3,7 @@ import time
 from typing import Tuple
 from message import MessageType
 from session import Session
-from files import get_file
+from files import get_file, save_file
 from crypto_helpers import *
 from math import ceil
 from Crypto import Random
@@ -28,7 +28,7 @@ class ClientSession:
 class ClientSessionSM:
     def __init__(self, session: ClientSession) -> None:
         self.__session = session
-        self.__state = States.NotConnecting
+        self.__state = States.Unauthorized
         self.__state_chart = {
             States.Unauthorized: self.__login_response_handler,
             States.Commanding: self.__command_response_handler,
@@ -119,9 +119,13 @@ class ClientSessionSM:
             self.__state_data = None
 
     def __cph__dnl(self, results: list[str]):
-        if len(results) != 1:
+        if len(results) != 3:
             raise Exception('Invalid response payload')
         if results[0] == ACCEPT:
+            fname = self.__state_data
+            length = results[1]
+            hash = results[2]
+            self.__state_data = FileTransferData([fname, length, hash])
             self.__state = States.Downloading
             print('Started download')
             self.__proceed_download()
@@ -146,7 +150,7 @@ class ClientSessionSM:
             raise Exception('Invalid MessageType')
 
         lines = payload.decode('UTF-8').split('\n')
-        state_data: FileTransferData = self.state_data
+        state_data: FileTransferData = self.__state_data
         if not(lines[0] == state_data.file_hash and lines[1] == state_data.file_size):
             raise('Invalid hash after upload')
         self.__state = States.Commanding
@@ -155,7 +159,7 @@ class ClientSessionSM:
 
 
     def __proceed_upload(self):
-        state_data: FileTransferData = self.state_data
+        state_data: FileTransferData = self.__state_data
         data = get_file(state_data.file_name)
         fragment_count = ceil(len(data) / 1024)
         for i in range(fragment_count):
@@ -167,11 +171,30 @@ class ClientSessionSM:
 
     # <region: Download Protocol>
     def __download_protocol_handler(self, type: MessageType, payload: bytes):
-        pass
-        #TODO
+        if not(type is MessageType.DOWNLOAD_RES_0 or type is MessageType.DOWNLOAD_RES_1):
+            raise Exception('Invalid MessageType')
+        state_data: FileTransferData = self.__state_data
+
+        state_data.buffer += payload
+
+        if type is MessageType.DOWNLOAD_RES_0:
+            if len(payload) is not 1024:
+                raise Exception('Invalid fragment size')
+
+        if type is MessageType.DOWNLOAD_RES_1:
+            if len(payload) > 1024:
+                raise Exception('Invalid fragment size')
+            if not state_data.validate():
+                print('Hash not matching, file transfer terminated')
+                raise Exception('Invalid downloaded file')
+
+            save_file(state_data.file_name, state_data.buffer)
+            self.__state_data = None
+            self.__state = States.Commanding
+
 
     def __proceed_download(self):
-        payload = ''
+        payload = READY.encode('UTF-8')
         message = self.__session.encrypt(MessageType.DOWNLOAD_REQ, payload)
     # </region: Download Protocol>
 
@@ -219,6 +242,12 @@ class ClientSessionSM:
                 return ['lst', *data]
         return None
 
+    def __cmd__dnl(self, params: list[str]):
+        if len(params) == 2:
+            self.__state_data = params[1]
+            return params
+        return None
+
     __command_chart = {
         'pwd': __cmd__standalone,
         'lst': __cmd__standalone,
@@ -226,7 +255,7 @@ class ClientSessionSM:
         'mkd': __cmd__single,
         'del': __cmd__single,
         'upl': __cmd__upl,
-        'dnl': __cmd__single
+        'dnl': __cmd__dnl
     }
     # </region: Command action>
 
