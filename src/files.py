@@ -1,16 +1,16 @@
-import imp
 import os
 from os.path import exists
 import shutil
 from typing import Tuple
 from users import User
+from crypto_helpers import *
+import options
 
 #import files as f
 #u1 = f.User('Alice')
 #u2 = f.User('Bob')
-#f.app_root = 'F:/UNI/BiztProt/NHF/bizt-prot-hf/src/files'
 
-app_root = ""
+app_root = options.app_root
 
 def __os_path_prefix(user: User) -> str:
     return f'{app_root}/data/{user.name}/'
@@ -69,7 +69,11 @@ def cmd_chd(user: User, path: str) -> bool:
 def cmd_mkd(user: User, path: str) -> bool:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(__parse_path(user, path))
-    os.mkdir(os_path)
+    try:
+        os.mkdir(os_path)
+        return True
+    except:
+        return False
 
 
 def cmd_del(user: User, path: str) -> bool:
@@ -84,17 +88,40 @@ def cmd_del(user: User, path: str) -> bool:
     return True
 
 
-def cmd_upl(user: User, fname: str, data: bytes) -> bool:
-    __create_home(user)
-    os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
-    with open(os_path, "wb") as f:
-        f.write(data)
-    return True
+# returns: size, sha256
+def cmd_dnl(user: User, fname: str) -> Tuple[str, str]:
+    data = download(user, fname)
+    if data:
+        return len(data), sha256(data)
+    else:
+        return None
 
 
-def cmd_dnl(user: User, fname: str) -> Tuple[bool, bytes]:
+def upload(user: User, fname: str, data: bytes) -> bool:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
-    with open(os_path, "rb") as f:
-        ret = f.read()
-    return True, ret
+    save_file(os_path, data)
+
+
+def save_file(path: str, data: bytes):
+    try:
+        with open(path, "wb") as f:
+            f.write(data)
+        return True
+    except:
+        return False
+
+
+def download(user: User, fname: str) -> bytes:
+    __create_home(user)
+    os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
+    return get_file(os_path)
+
+
+def get_file(path):
+    try:
+        with open(path, "rb") as f:
+            ret = f.read()
+        return ret
+    except:
+        return None
