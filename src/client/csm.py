@@ -196,6 +196,7 @@ class ClientSessionSM:
     def __proceed_download(self):
         payload = READY.encode('UTF-8')
         message = self.__session.encrypt(MessageType.DOWNLOAD_REQ, payload)
+        #TODO send message
     # </region: Download Protocol>
 
 
@@ -205,7 +206,7 @@ class ClientSessionSM:
             print('Can not execute commands now')
             return
 
-        lines = cmd_str.split('\n')
+        lines = cmd_str.split(' ')
         cmd = lines[0]
 
         fn = self.__command_chart.get(cmd)
