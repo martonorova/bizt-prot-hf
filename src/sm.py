@@ -33,11 +33,13 @@ class SessionSM:
         }
         self.__state_data = None
 
+    # Receive message from the session
     def receive_message(self, type: MessageType, payload: bytes):
         self.__state_chart[self.__state](type, payload)
         # TODO
         return
 
+    # <region: Login Protocol request handler>
     def __login_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if type is not MessageType.LOGIN_REQ:
             raise Exception('Invalid MessageType')
@@ -65,7 +67,9 @@ class SessionSM:
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
         message = self.__session.encrypt(MessageType.LOGIN_RES, response_payload)
         #TODO send message back to client
+    # </region: Login Protocol request handler>
 
+    # <region: High level request handlers>
     def __command_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if type is not MessageType.COMMAND_REQ:
             raise Exception('Invalid MessageType')
@@ -127,8 +131,9 @@ class SessionSM:
 
         self.__state_data = None
         self.__state = States.AwaitingCommands
+    # </region: High level request handlers>
 
-
+    # <region: Command Protocol request handlers per command type>
     def __cph__pwd(self, params: list[str]):
         if len(params) != 0:
             raise Exception('Invalid params')
@@ -186,4 +191,4 @@ class SessionSM:
         'upl': __cph__upl,
         'dnl': __cph__dnl,
     }
-
+    # </region: Command Protocol request handlers per command type>
