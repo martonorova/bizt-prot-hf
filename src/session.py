@@ -27,10 +27,8 @@ class Session(object):
         # self.socket.sendall(data)
         message = self.encrypt(message_type, data)
 
-        logging.debug(f"Message: f{message}")
-
         self.socket.sendall(message.serialize())
-
+        logging.debug(f"Sent Message: {message}")
         
 
     def receive(self) -> (MessageType, bytes):
@@ -39,6 +37,7 @@ class Session(object):
             raise Exception("Read empty data from socket")
         # if data: # on connection, data is empty --> ignore it
         message = Message.deserialize(data)
+        logging.debug(f"Received Message: {message}")
         message_type, payload = self.decrypt(message)
         logging.debug(f"Received payload: {payload.decode('UTF-8')}")
 

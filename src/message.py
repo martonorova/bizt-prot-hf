@@ -118,7 +118,7 @@ class Message(object):
         else:
             epd = raw_message[HDR_LEN:-MAC_LEN]
             mac = raw_message[-MAC_LEN:]
-            etk = None
+            etk = b''
         
         message = Message(h, epd, mac, etk)
 
