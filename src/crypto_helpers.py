@@ -2,7 +2,7 @@ import json
 import base64
 import hashlib
 from Crypto.Protocol.KDF import HKDF
-from Crypto.Hash import SHA512
+from Crypto.Hash import SHA256
 
 
 def sha256(param: bytes):
@@ -24,5 +24,5 @@ def base64_decode(bytes):
 def symmetric_key(srv_rand: bytes, cli_rand: bytes, req_hash: bytes) -> bytes:
     master_secret = srv_rand + cli_rand
     salt = req_hash
-    symmetric_key = HKDF(master_secret, 32, salt, SHA512, 1)
+    symmetric_key = HKDF(master_secret, 32, salt, SHA256, 1)
     return symmetric_key
