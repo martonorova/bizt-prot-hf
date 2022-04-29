@@ -67,7 +67,7 @@ class SessionSM:
         self.__session.key = symmetric_key(srv_rand, cli_rand, req_hash)
         self.__state = States.AwaitingCommands
 
-        response_payload_lines = [sha256(payload), srv_rand]
+        response_payload_lines = [req_hash, srv_rand]
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
         message = self.__session.encrypt(MessageType.LOGIN_RES, response_payload)
         #TODO send message back to client
