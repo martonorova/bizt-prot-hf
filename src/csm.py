@@ -44,7 +44,9 @@ class ClientSessionSM:
 
     # Login action
     def login(self, user, passwd):
-        response_payload_lines = [time.time_ns(), user, passwd, Random.get_random_bytes(16)]
+        cli_rand = Random.get_random_bytes(16)
+        self.__state_data = cli_rand
+        response_payload_lines = [time.time_ns(), user, passwd, cli_rand]
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
         self.__prev_req_hash = sha256(response_payload)
         message = self.__session.encrypt(
@@ -63,8 +65,13 @@ class ClientSessionSM:
             raise Exception('Invalid random')
         if request_hash != self.__prev_req_hash:
             raise Exception('Invalid hash')
+        
+        self.__session.key = symmetric_key(server_random, self.__state_data, request_hash)
         self.__prev_req_hash = None
+        self.__state_data = None
         self.__state = States.Commanding
+        
+        
     # </region: Login Protocol response handler>
 
     # <region: Command Protocol response handlers>
