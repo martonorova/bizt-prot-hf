@@ -60,8 +60,8 @@ class SessionSM:
         if users.authenticate(username, password):
             raise Exception('Invalid user:passwd pair')
 
-        self.__session.user = User(username)        
-        
+        self.__session.user = User(username)
+
         srv_rand = Random.get_random_bytes(16)
         req_hash = sha256(payload)
         self.__session.key = symmetric_key(srv_rand, cli_rand, req_hash)
@@ -84,7 +84,7 @@ class SessionSM:
         fn = self.__cph__fn_chart.get(cmd)
         if fn is None:
             raise Exception('Invalid CommandType')
-            
+
         fn_results = fn(params)
         cmd_hash = sha256(payload)
         response_payload_lines = [cmd, cmd_hash] + fn_results
