@@ -19,7 +19,7 @@ class Client:
 
         self.__connect()
 
-        self.__perform_login()
+        # self.__perform_login()
 
     def __del__(self):
         if self.__session is not None:
@@ -35,16 +35,21 @@ class Client:
         if self.__session is None:
             logging.error("Client session not initialized")
             sys.exit(1)
-        
-        username = "alice"
-        password = "aaa"
 
-        self.__session.login(username, password)
+        user = "alice"
+        password = "aaa"
+        # TODO call login from ClientStateMachine
+        # self.csm.login(user, password)
+        self.__session.login(user, password)
 
     def __send(self, data: bytes):
-        logging.debug(f"Attempting to send {data}")
-        # in final form, send a Message object from ClientStateMachine
-        self.__session.send(MessageType.COMMAND_REQ ,data)
+        logging.debug(f"Client attempting to send {data}")
+
+        # TODO wont need this in final form
+        message = self.__session.encrypt(MessageType.COMMAND_REQ, data)
+
+        # TODO in final form, send a Message object from ClientStateMachine
+        self.__session.send(message)
 
     def __receive(self) -> bytes:
         return self.__session.receive()
@@ -57,10 +62,10 @@ class Client:
 
 client = Client("localhost", 5150)
 
-# res = client.make_req_sync(b'hello server 1')
+res = client.make_req_sync(b'hello server 1')
 
-# print(res)
+print(res)
 
-# time.sleep(5)
-# res = client.make_req_sync(b'hello server 2')
-# print(res)
+time.sleep(5)
+res = client.make_req_sync(b'hello server 2')
+print(res)

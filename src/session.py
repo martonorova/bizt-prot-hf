@@ -23,15 +23,9 @@ class Session(object):
         self.key : bytes = bytes.fromhex("00" * 32) # the symmetric key TODO set this with Login Protocol
         self.tk: bytes = b'' # temporary key
 
-    # TODO def send(self, message: Message):
-    def send(self, message_type: MessageType, data : bytes):
-        logging.debug(f"Sending invoked with MessageType: {message_type}, payload: {data}")
-        # self.socket.sendall(data)
-        message = self.encrypt(message_type, data)
-
+    def send(self, message: Message):
         self.socket.sendall(message.serialize())
         logging.debug(f"Sent Message: {message}")
-        
 
     def receive(self) -> (MessageType, bytes):
         data = self.socket.recv(2048) # TODO read based on header length field
@@ -50,10 +44,8 @@ class Session(object):
         # self.sm.login(user, password)
 
         payload = ' '.join([user, password]).encode()
-        self.send(MessageType.LOGIN_REQ, payload)
-        # message = self.encrypt(MessageType.LOGIN_REQ, payload)
-
-
+        message = self.encrypt(MessageType.LOGIN_REQ, payload)
+        self.send(message)
 
     def process(self, message_type: MessageType, payload: bytes):
         # send message and payload to business logic

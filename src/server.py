@@ -5,6 +5,8 @@ import socketserver
 
 import session
 
+from message import Message, MessageType
+
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
 
@@ -25,16 +27,16 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 logging.error(f"{e} from {client_address}:{client_port}")
                 break
             
-            # pass message to business logic
+            # TODO pass message to business logic
             # self.__session.process(message_type, payload)
 
-            self.__session.send(message_type, payload.upper())
+            response_payload = "TEST_RESPONSE".encode()
+            response_msg = self.__session.encrypt(MessageType.COMMAND_RES, response_payload)
+            self.__session.send(response_msg)
         logging.info(f"Closed client connection from {client_address}:{client_port}")
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 5150
-
-    # TODO read in server public and private key from file
 
     # Create the server, binding to localhost on port 9999
     with socketserver.ThreadingTCPServer((HOST, PORT), TCPHandler) as server:
