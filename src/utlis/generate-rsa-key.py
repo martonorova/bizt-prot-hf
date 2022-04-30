@@ -2,7 +2,7 @@ import getpass
 from Crypto.PublicKey import RSA
 
 
-keyfolder = '../keys/'
+keyfolder = '../'
 pubkeyfile = keyfolder + 'pubkey.pem'
 privkeyfile = keyfolder + 'privkey.pem'
 
