@@ -57,10 +57,10 @@ class Client:
 
 client = Client("localhost", 5150)
 
-res = client.make_req_sync(b'hello server 1')
+# res = client.make_req_sync(b'hello server 1')
 
-print(res)
+# print(res)
 
-time.sleep(5)
-res = client.make_req_sync(b'hello server 2')
-print(res)
+# time.sleep(5)
+# res = client.make_req_sync(b'hello server 2')
+# print(res)

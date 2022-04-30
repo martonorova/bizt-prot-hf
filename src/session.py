@@ -21,6 +21,7 @@ class Session(object):
         self.socket : socket.socket = socket
         self.sqn : int = 0 # sequence number
         self.key : bytes = bytes.fromhex("00" * 32) # the symmetric key TODO set this with Login Protocol
+        self.tk: bytes = b'' # temporary key
 
     # TODO def send(self, message: Message):
     def send(self, message_type: MessageType, data : bytes):
@@ -76,11 +77,12 @@ class Session(object):
         encrypted_payload, authtag = AE.encrypt_and_digest(payload)
 
         return (encrypted_payload, authtag)
+    
+    def __calculate_header_len(self, typ: MessageType, payload: bytes) -> int:
+        base_length = HDR_LEN + len(payload) + MAC_LEN
+        return base_length + ETK_LEN if typ == MessageType.LOGIN_REQ else base_length
 
-    def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
-
-        msg_length = HDR_LEN + len(payload) + MAC_LEN
-        
+    def __create_header(self, typ: MessageType, msg_length: int) -> Header:
         self.sqn += 1
         header = Header(
                 ver=b'\x01\x00',
@@ -90,38 +92,48 @@ class Session(object):
                 rnd=Random.get_random_bytes(6),
                 rsv=b'\x00\x00'
             )
-        
+        return header
 
-        # TODO handle LOGIN_REQUEST and LOGIN_RESPONSE encryption
+    def __encrypt_temporary_key(self, temp_key: bytes) -> bytes:
+        # load the public key from the public key file and 
+        # create an RSA cipher object
+        pubkeyfile = 'pubkey.pem'
+        pubkey = load_publickey(pubkeyfile)
+        RSAcipher = PKCS1_OAEP.new(pubkey)
+
+        # encrypt temporary key
+        etk = RSAcipher.encrypt(temp_key)
+        if len(etk) != ETK_LEN:
+            logging.error(f"etk length is {len(etk)} insead of {ETK_LEN}")
+            self.close()
+        
+        return etk
+
+    def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
+
+        msg_length = self.__calculate_header_len(typ, payload)
+        
+        header = self.__create_header(typ, msg_length)
+
         if typ == MessageType.LOGIN_REQ:
-            # message will contain the encrypted temporary key
-            header.length += ETK_LEN
-            # the temporary key to encrypt the payload
-            tk = Random.get_random_bytes(32)
-
-            # load the public key from the public key file and 
-            # create an RSA cipher object
-            pubkeyfile = 'pubkey.pem'
-            pubkey = load_publickey(pubkeyfile)
-            RSAcipher = PKCS1_OAEP.new(pubkey)
-
-            # encrypted temporary key
-            etk = RSAcipher.encrypt(tk)
-            if len(etk) != ETK_LEN:
-                logging.error(f"etk length is {len(etk)} insead of {ETK_LEN}")
-                self.close()
-
-            # encrypt payload
-            encrypted_payload, authtag = self.__encrypt_payload(tk, header, payload)
-
-            return Message(header, encrypted_payload, authtag, etk)
-
-        else:
+            self.tk = Random.get_random_bytes(32)
+            etk = self.__encrypt_temporary_key(self.tk)
+            transfer_key = self.tk
             
-            # encrypt payload
-            encrypted_payload, authtag = self.__encrypt_payload(self.key, header, payload)
-        
-            return Message(header, encrypted_payload, authtag)
+        elif typ == MessageType.LOGIN_RES:
+            if len(self.tk) == 0:
+                logging.error("no temporary key stored")
+                self.close()
+            etk = b''
+            transfer_key = self.tk
+        else:
+            etk = b''
+            transfer_key = self.key
+
+        # encrypt payload
+        encrypted_payload, authtag = self.__encrypt_payload(transfer_key, header, payload)
+
+        return Message(header, encrypted_payload, authtag, etk)
 
     def __validate_sqn(self, sqn_to_validate: int):
         logging.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
@@ -129,23 +141,37 @@ class Session(object):
             raise ValueError(f"Message sequence number is too old: {message.header.sqn}!")
         logging.debug(f"Sequence number verification is successful.")
 
-    def decrypt(self, message: Message) -> (MessageType, bytes):
-        # length check already happened during deserialization
+    def __decrypt_temporary_key(self, etk: bytes) -> bytes:
+        # load the private key from the private key file and 
+        # create the RSA cipher object
+        privkeyfile = 'privkey.pem'
+        keypair = load_keypair(privkeyfile)
+        RSAcipher = PKCS1_OAEP.new(keypair)
 
+        # decrypt the transfer key
+        temp_key = RSAcipher.decrypt(etk)
+        return temp_key
+
+    def decrypt(self, message: Message) -> (MessageType, bytes):
+        # NOTE: length check already happened during message deserialization
         # validate sequence number
         self.__validate_sqn(message.header.sqn)
 
-        # TODO handle LOGIN_REQUEST and LOGIN_RESPONSE encryption
         if message.typ == MessageType.LOGIN_REQ:
-            logging.warn("received LOGIN_REQ message")
+            logging.info("received LOGIN_REQ message")
+            self.tk = self.__decrypt_temporary_key(message.etk)
+            transfer_key = self.tk
+        elif message.typ == MessageType.LOGIN_RES:
+            logging.info("received LOGIN_RES message")
+            transfer_key = self.tk
+            # TODO discard temporary key after successful login process
+        else:
+            transfer_key = self.key
 
         logging.debug("Attempt decryption and authentication tag verification...")
-
-
         nonce = message.header.nonce
-        AE = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
+        AE = AES.new(transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(message.header.serialize())
-
         try:
             payload = AE.decrypt_and_verify(message.epd, message.mac)
         except Exception as e:
@@ -153,9 +179,7 @@ class Session(object):
             raise e
         logging.debug("Operation was successful: message is intact, content is decrypted")
 
-
-
-
+        # update sequence number
         self.sqn = message.header.sqn
         
         return (message.header.typ, payload)
