@@ -14,7 +14,6 @@ def save_publickey(pubkey, pubkeyfile):
     with open(pubkeyfile, 'wb') as f:
         f.write(pubkey.export_key(format='PEM'))
 
-# passphrase is 'securepass'
 def save_keypair(keypair, privkeyfile):
     passphrase = getpass.getpass('Enter a passphrase to protect the saved private key: ')
     with open(privkeyfile, 'wb') as f:
