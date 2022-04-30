@@ -4,16 +4,19 @@ import logging
 import socketserver
 
 import serversession
+from common import load_keypair
 
 from message import Message, MessageType
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
 
+keypair = None # initialize before server startup
+
 class TCPHandler(socketserver.BaseRequestHandler):
 
     def setup(self):
-        self.__session = serversession.ServerSession(self.request)
+        self.__session = serversession.ServerSession(self.request, keypair)
 
     def handle(self):
         client_address: str = self.request.getpeername()[0]
@@ -37,6 +40,9 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 5150
+
+    privkeyfile = 'privkey.pem'
+    keypair = load_keypair(privkeyfile)
 
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     # Create the server, binding to localhost on port 9999

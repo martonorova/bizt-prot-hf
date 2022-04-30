@@ -41,6 +41,7 @@ class Client:
         # TODO call login from ClientStateMachine
         # self.csm.login(user, password)
         self.__session.login(user, password)
+        self.__receive()
 
     def __send(self, data: bytes):
         logging.debug(f"Client attempting to send {data}")
