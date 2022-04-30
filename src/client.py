@@ -3,6 +3,7 @@ import socket
 import selectors
 import traceback
 import logging
+import getpass
 
 import session
 import time
@@ -16,9 +17,9 @@ class Client:
         self.addr = (host, port)
         self.__session : session.Session = None
 
-        # TODO read in server public key from file
-
         self.__connect()
+
+        self.__perform_login()
 
     def __del__(self):
         if self.__session is not None:
@@ -30,8 +31,19 @@ class Client:
         logging.debug("Client connected to server")
         self.__session = session.Session(sock)
 
+    def __perform_login(self):
+        if self.__session is None:
+            logging.error("Client session not initialized")
+            sys.exit(1)
+        
+        username = "alice"
+        password = "aaa"
+
+        self.__session.login(username, password)
+
     def __send(self, data: bytes):
         logging.debug(f"Attempting to send {data}")
+        # in final form, send a Message object from ClientStateMachine
         self.__session.send(MessageType.COMMAND_REQ ,data)
 
     def __receive(self) -> bytes:

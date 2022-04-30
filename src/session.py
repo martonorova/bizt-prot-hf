@@ -1,12 +1,15 @@
-from message import Message, Header, MessageType, HDR_LEN, MAC_LEN
+from message import Message, Header, MessageType, HDR_LEN, MAC_LEN, ETK_LEN
 
-from Crypto.Cipher import AES
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto import Random
 
+import sys
 import socket
 import logging
 import sm
 from users import User
+from common import load_publickey, load_keypair
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
@@ -18,8 +21,8 @@ class Session(object):
         self.socket : socket.socket = socket
         self.sqn : int = 0 # sequence number
         self.key : bytes = bytes.fromhex("00" * 32) # the symmetric key TODO set this with Login Protocol
-        self.temp_key : bytes = b'' # temporary key in login sequence
 
+    # TODO def send(self, message: Message):
     def send(self, message_type: MessageType, data : bytes):
         logging.debug(f"Sending invoked with MessageType: {message_type}, payload: {data}")
         # self.socket.sendall(data)
@@ -30,7 +33,7 @@ class Session(object):
         
 
     def receive(self) -> (MessageType, bytes):
-        data = self.socket.recv(1024) # TODO read based on header length field
+        data = self.socket.recv(2048) # TODO read based on header length field
         if len(data) == 0:
             raise Exception("Read empty data from socket")
         # if data: # on connection, data is empty --> ignore it
@@ -40,6 +43,16 @@ class Session(object):
         logging.debug(f"Received payload: {payload.decode('UTF-8')}")
 
         return message_type, payload
+    
+    def login(self, user, password):
+        # TODO final form:
+        # self.sm.login(user, password)
+
+        payload = ' '.join([user, password]).encode()
+        self.send(MessageType.LOGIN_REQ, payload)
+        # message = self.encrypt(MessageType.LOGIN_REQ, payload)
+
+
 
     def process(self, message_type: MessageType, payload: bytes):
         # send message and payload to business logic
@@ -51,85 +64,85 @@ class Session(object):
                 f'{e!r}'
             )
 
-
-
-    # def process_events(self, mask):
-    #     if mask & selectors.EVENT_READ:
-    #         logging.debug("EVENT_READ occured")
-    #         self.read()
-    #     if mask & selectors.EVENT_WRITE:
-    #         logging.debug("EVENT_WRITE occured")
-    #         self.write()
-
-    # def read(self):
-    #     # read full header + remaining bytes based on header.len
-    #     self._read()
-
-    #     # try to process the header
-    #     if self._recv_len < 0:
-    #         self.process_header()
-    #     else:
-    #         # try to process the rest of the message
-    #         remaining_length = self._recv_len - HDR_LEN
-    #         if len(self._recv_buffer) >= remaining_length:
-    #             try:
-    #                 message = Message.deserialize(self._recv_buffer[:self._recv_len])
-    #                 message_type, payload = self.decrypt(message)
-    #                 self.sm.receive_message(message_type, payload)
-    #             except Exception as e:
-    #                 logging.error(
-    #                     f"Error: Message.deserialize() exception for"
-    #                     f"{e!r}"
-    #                 )
-    #                 # we must close the connection on error
-    #                 self.close()
-    #             finally:
-    #                 # remove processed bytes from buffer
-    #                 self._recv_buffer = self._recv_buffer[self._recv_len:]
-
-
-
     def process_header(self):
         if len(self._recv_buffer) >= HDR_LEN:
             # we can parse the length of the message
             self._recv_len = int.from_bytes(self._recv_buffer[4:6], byteorder='big')
 
-    def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
-
-        payload_length = len(payload)
-        msg_length = HDR_LEN + payload_length + MAC_LEN
-
-        self.sqn += 1
-
-        header = Header(
-            ver=b'\x01\x00',
-            typ=typ,
-            length=msg_length,
-            sqn=self.sqn,
-            rnd=Random.get_random_bytes(6),
-            rsv=b'\x00\x00'
-        )
-
-        nonce = header.sqn.to_bytes(2, byteorder='big') + header.rnd
-        AE = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
+    def __encrypt_payload(self, key, header, payload) -> (bytes, bytes):
+        nonce = header.nonce
+        AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(header.serialize())
         encrypted_payload, authtag = AE.encrypt_and_digest(payload)
 
-        return Message(header, encrypted_payload, authtag)
+        return (encrypted_payload, authtag)
+
+    def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
+
+        msg_length = HDR_LEN + len(payload) + MAC_LEN
+        
+        self.sqn += 1
+        header = Header(
+                ver=b'\x01\x00',
+                typ=typ,
+                length=msg_length, #
+                sqn=self.sqn,
+                rnd=Random.get_random_bytes(6),
+                rsv=b'\x00\x00'
+            )
+        
+
+        # TODO handle LOGIN_REQUEST and LOGIN_RESPONSE encryption
+        if typ == MessageType.LOGIN_REQ:
+            # message will contain the encrypted temporary key
+            header.length += ETK_LEN
+            # the temporary key to encrypt the payload
+            tk = Random.get_random_bytes(32)
+
+            # load the public key from the public key file and 
+            # create an RSA cipher object
+            pubkeyfile = 'pubkey.pem'
+            pubkey = load_publickey(pubkeyfile)
+            RSAcipher = PKCS1_OAEP.new(pubkey)
+
+            # encrypted temporary key
+            etk = RSAcipher.encrypt(tk)
+            if len(etk) != ETK_LEN:
+                logging.error(f"etk length is {len(etk)} insead of {ETK_LEN}")
+                self.close()
+
+            # encrypt payload
+            encrypted_payload, authtag = self.__encrypt_payload(tk, header, payload)
+
+            return Message(header, encrypted_payload, authtag, etk)
+
+        else:
+            
+            # encrypt payload
+            encrypted_payload, authtag = self.__encrypt_payload(self.key, header, payload)
+        
+            return Message(header, encrypted_payload, authtag)
+
+    def __validate_sqn(self, sqn_to_validate: int):
+        logging.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
+        if (sqn_to_validate <= self.sqn):
+            raise ValueError(f"Message sequence number is too old: {message.header.sqn}!")
+        logging.debug(f"Sequence number verification is successful.")
 
     def decrypt(self, message: Message) -> (MessageType, bytes):
         # length check already happened during deserialization
 
         # validate sequence number
-        logging.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
-        if (message.header.sqn <= self.sqn):
-            raise ValueError(f"Message sequence number is too old: {message.header.sqn}!")
-        logging.debug(f"Sequence number verification is successful.")
+        self.__validate_sqn(message.header.sqn)
 
-        # TODO handle login request decryption
+        # TODO handle LOGIN_REQUEST and LOGIN_RESPONSE encryption
+        if message.typ == MessageType.LOGIN_REQ:
+            logging.warn("received LOGIN_REQ message")
 
         logging.debug("Attempt decryption and authentication tag verification...")
-        nonce = message.header.sqn.to_bytes(2, byteorder='big') + message.header.rnd
+
+
+        nonce = message.header.nonce
         AE = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(message.header.serialize())
 
@@ -139,6 +152,9 @@ class Session(object):
             logging.error("Operation failed!")
             raise e
         logging.debug("Operation was successful: message is intact, content is decrypted")
+
+
+
 
         self.sqn = message.header.sqn
         

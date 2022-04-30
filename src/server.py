@@ -22,7 +22,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
             try:
                 message_type, payload = self.__session.receive()
             except Exception as e:
-                logging.warning(f"{e} from {client_address}:{client_port}")
+                logging.error(f"{e} from {client_address}:{client_port}")
                 break
             
             # pass message to business logic

@@ -4,7 +4,7 @@ from enum import Enum, unique
 # header length
 HDR_LEN = 16
 # encrypted temporary key length
-ETK_LEN = 32
+ETK_LEN = 256
 # mac length
 MAC_LEN = 12
 
@@ -33,12 +33,12 @@ class Header(object):
     def __str__(self):
         return f"""
             Header
-            Version (ver): {self.ver}
+            Version (ver): {self.ver.hex()}
             Type (typ): {self.typ}
             Length (len): {self.length}
             Sequence (sqn): {self.sqn}
-            Random (rnd): {self.rnd}
-            Reserved (rsv): {self.rsv}
+            Random (rnd): {self.rnd.hex()}
+            Reserved (rsv): {self.rsv.hex()}
         """
 
     def serialize(self) -> bytes:
@@ -77,6 +77,10 @@ class Header(object):
             raise ValueError(f"[DESERIALIZE_FAILED] invalid reserved field: {rsv}")
 
         return Header(ver, typ, length, sqn, rnd, rsv)
+    
+    @property
+    def nonce(self) -> bytes:
+        return self.sqn.to_bytes(2, byteorder='big') + self.rnd
 
 
 class Message(object):
@@ -86,17 +90,19 @@ class Message(object):
         self.mac : bytes = mac
         self.etk : bytes = etk
 
+    @property
+    def typ(self) -> MessageType:
+        return self.header.typ
+
     def __str__(self):
         return f"""
             Message:
             Header (header): {self.header}
-            Encrypted Payload (epd): {self.epd}
-            Mac (mac): {self.mac}
-            Encrytped Temporary Key (etk): {self.etk}
+            Encrypted Payload (epd): {self.epd.hex()}
+            Mac (mac): {self.mac.hex()}
+            Encrytped Temporary Key (etk): {self.etk.hex()}
         """
             
-        
-
     def serialize(self) -> bytes:
         return self.header.serialize() + \
             self.epd + \
@@ -114,7 +120,7 @@ class Message(object):
         if h.typ == MessageType.LOGIN_REQ:
             epd = raw_message[HDR_LEN:-MAC_LEN-ETK_LEN]
             mac = raw_message[-MAC_LEN-ETK_LEN:-ETK_LEN]
-            etk = raw_message[-ETK_LEN]
+            etk = raw_message[-ETK_LEN:]
         else:
             epd = raw_message[HDR_LEN:-MAC_LEN]
             mac = raw_message[-MAC_LEN:]

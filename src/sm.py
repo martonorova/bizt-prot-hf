@@ -100,7 +100,7 @@ class SessionSM:
         state_data.buffer += payload
 
         if type is MessageType.UPLOAD_REQ_0:
-            if len(payload) is not 1024:
+            if len(payload) != 1024:
                 raise Exception('Invalid fragment size')
 
         if type is MessageType.UPLOAD_REQ_1:
