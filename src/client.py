@@ -5,7 +5,7 @@ import traceback
 import logging
 import getpass
 
-import session
+import clientsession
 import time
 
 from message import MessageType
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.DEBUG)
 class Client:
     def __init__(self, host, port):
         self.addr = (host, port)
-        self.__session : session.Session = None
+        self.__session : clientsession.ClientSession = None
 
         self.__connect()
 
@@ -29,7 +29,7 @@ class Client:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(self.addr)
         logging.debug("Client connected to server")
-        self.__session = session.Session(sock)
+        self.__session = clientsession.ClientSession(sock)
 
     def __perform_login(self):
         if self.__session is None:

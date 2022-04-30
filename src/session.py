@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.DEBUG)
 class Session(object):
     def __init__(self, socket: socket.socket):
         self.user : User = None
-        self.sm: sm.SessionSM = sm.SessionSM(self)
+        self.sm = None
         self.socket : socket.socket = socket
         self.sqn : int = 0 # sequence number
         self.key : bytes = bytes.fromhex("00" * 32) # the symmetric key TODO set this with Login Protocol
@@ -38,16 +38,11 @@ class Session(object):
         logging.debug(f"Received payload: {payload.decode('UTF-8')}")
 
         return message_type, payload
-    
-    def login(self, user, password):
-        # TODO final form:
-        # self.sm.login(user, password)
-
-        payload = ' '.join([user, password]).encode()
-        message = self.encrypt(MessageType.LOGIN_REQ, payload)
-        self.send(message)
 
     def process(self, message_type: MessageType, payload: bytes):
+        if self.sm is None:
+            logging.error("Session state machine is unitialized")
+            self.close()
         # send message and payload to business logic
         try:
             self.sm.receive_message(message_type, payload)
@@ -57,6 +52,7 @@ class Session(object):
                 f'{e!r}'
             )
 
+    # TODO do we need adaptive reading from socket based on header len value?
     def process_header(self):
         if len(self._recv_buffer) >= HDR_LEN:
             # we can parse the length of the message
@@ -70,6 +66,7 @@ class Session(object):
 
         return (encrypted_payload, authtag)
     
+    # TODO maybe separated between ServerSession and ClientSession
     def __calculate_header_len(self, typ: MessageType, payload: bytes) -> int:
         base_length = HDR_LEN + len(payload) + MAC_LEN
         return base_length + ETK_LEN if typ == MessageType.LOGIN_REQ else base_length
@@ -86,21 +83,7 @@ class Session(object):
             )
         return header
 
-    def __encrypt_temporary_key(self, temp_key: bytes) -> bytes:
-        # load the public key from the public key file and 
-        # create an RSA cipher object
-        pubkeyfile = 'pubkey.pem'
-        pubkey = load_publickey(pubkeyfile)
-        RSAcipher = PKCS1_OAEP.new(pubkey)
-
-        # encrypt temporary key
-        etk = RSAcipher.encrypt(temp_key)
-        if len(etk) != ETK_LEN:
-            logging.error(f"etk length is {len(etk)} insead of {ETK_LEN}")
-            self.close()
-        
-        return etk
-
+    # TODO separate into ServerSession and ClientSession
     def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
 
         msg_length = self.__calculate_header_len(typ, payload)
@@ -133,17 +116,7 @@ class Session(object):
             raise ValueError(f"Message sequence number is too old: {message.header.sqn}!")
         logging.debug(f"Sequence number verification is successful.")
 
-    def __decrypt_temporary_key(self, etk: bytes) -> bytes:
-        # load the private key from the private key file and 
-        # create the RSA cipher object
-        privkeyfile = 'privkey.pem'
-        keypair = load_keypair(privkeyfile)
-        RSAcipher = PKCS1_OAEP.new(keypair)
-
-        # decrypt the transfer key
-        temp_key = RSAcipher.decrypt(etk)
-        return temp_key
-
+    # TODO separate into ServerSession and ClientSession
     def decrypt(self, message: Message) -> (MessageType, bytes):
         # NOTE: length check already happened during message deserialization
         # validate sequence number

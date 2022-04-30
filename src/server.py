@@ -3,7 +3,7 @@ import traceback
 import logging
 import socketserver
 
-import session
+import serversession
 
 from message import Message, MessageType
 
@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 class TCPHandler(socketserver.BaseRequestHandler):
 
     def setup(self):
-        self.__session = session.Session(self.request)
+        self.__session = serversession.ServerSession(self.request)
 
     def handle(self):
         client_address: str = self.request.getpeername()[0]
