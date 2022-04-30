@@ -38,6 +38,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
 if __name__ == "__main__":
     HOST, PORT = "localhost", 5150
 
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
     # Create the server, binding to localhost on port 9999
     with socketserver.ThreadingTCPServer((HOST, PORT), TCPHandler) as server:
         # Activate the server; this will keep running until you

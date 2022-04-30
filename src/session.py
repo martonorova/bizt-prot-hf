@@ -58,7 +58,7 @@ class Session(object):
             # we can parse the length of the message
             self._recv_len = int.from_bytes(self._recv_buffer[4:6], byteorder='big')
 
-    def __encrypt_payload(self, key, header, payload) -> (bytes, bytes):
+    def encrypt_payload(self, key, header, payload) -> (bytes, bytes):
         nonce = header.nonce
         AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(header.serialize())
@@ -67,11 +67,12 @@ class Session(object):
         return (encrypted_payload, authtag)
     
     # TODO maybe separated between ServerSession and ClientSession
-    def __calculate_header_len(self, typ: MessageType, payload: bytes) -> int:
+    def calculate_header_len(self, typ: MessageType, payload: bytes) -> int:
         base_length = HDR_LEN + len(payload) + MAC_LEN
         return base_length + ETK_LEN if typ == MessageType.LOGIN_REQ else base_length
 
-    def __create_header(self, typ: MessageType, msg_length: int) -> Header:
+    def create_header(self, typ: MessageType, payload: bytes) -> Header:
+        msg_length = self.calculate_header_len(typ, payload)
         self.sqn += 1
         header = Header(
                 ver=b'\x01\x00',
@@ -83,59 +84,31 @@ class Session(object):
             )
         return header
 
-    # TODO separate into ServerSession and ClientSession
+    # returns the transfer key and its encrypted form if needed based on the MessageType
+    # should initialize temporary key if needed based on the MessageType
+    def retrieve_encrypt_transfer_key(self, typ: MessageType) -> (bytes, bytes):
+        raise NotImplementedError("Called from base Session instance!")
+
     def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
-
-        msg_length = self.__calculate_header_len(typ, payload)
+        header = self.create_header(typ, payload)
         
-        header = self.__create_header(typ, msg_length)
-
-        if typ == MessageType.LOGIN_REQ:
-            self.tk = Random.get_random_bytes(32)
-            etk = self.__encrypt_temporary_key(self.tk)
-            transfer_key = self.tk
-            
-        elif typ == MessageType.LOGIN_RES:
-            if len(self.tk) == 0:
-                logging.error("no temporary key stored")
-                self.close()
-            etk = b''
-            transfer_key = self.tk
-        else:
-            etk = b''
-            transfer_key = self.key
+        transfer_key, etk = self.retrieve_encrypt_transfer_key(typ)
 
         # encrypt payload
-        encrypted_payload, authtag = self.__encrypt_payload(transfer_key, header, payload)
+        encrypted_payload, authtag = self.encrypt_payload(transfer_key, header, payload)
 
         return Message(header, encrypted_payload, authtag, etk)
-
-    def __validate_sqn(self, sqn_to_validate: int):
+    
+    def validate_sqn(self, sqn_to_validate: int):
         logging.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
         if (sqn_to_validate <= self.sqn):
             raise ValueError(f"Message sequence number is too old: {message.header.sqn}!")
         logging.debug(f"Sequence number verification is successful.")
 
-    # TODO separate into ServerSession and ClientSession
-    def decrypt(self, message: Message) -> (MessageType, bytes):
-        # NOTE: length check already happened during message deserialization
-        # validate sequence number
-        self.__validate_sqn(message.header.sqn)
-
-        if message.typ == MessageType.LOGIN_REQ:
-            logging.info("received LOGIN_REQ message")
-            self.tk = self.__decrypt_temporary_key(message.etk)
-            transfer_key = self.tk
-        elif message.typ == MessageType.LOGIN_RES:
-            logging.info("received LOGIN_RES message")
-            transfer_key = self.tk
-            # TODO discard temporary key after successful login process
-        else:
-            transfer_key = self.key
-
+    def decrypt_payload(self, key: bytes, message: Message) -> bytes:
         logging.debug("Attempt decryption and authentication tag verification...")
         nonce = message.header.nonce
-        AE = AES.new(transfer_key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
+        AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(message.header.serialize())
         try:
             payload = AE.decrypt_and_verify(message.epd, message.mac)
@@ -143,6 +116,20 @@ class Session(object):
             logging.error("Operation failed!")
             raise e
         logging.debug("Operation was successful: message is intact, content is decrypted")
+
+        return payload
+
+    def retrieve_decrypt_transfer_key(self, message: Message) -> (bytes, bytes):
+        raise NotImplementedError("Called from base Session instance!")
+
+    def decrypt(self, message: Message) -> (MessageType, bytes):
+        # NOTE: length check already happened during message deserialization
+        # validate sequence number
+        self.validate_sqn(message.header.sqn)
+
+        transfer_key = self.retrieve_decrypt_transfer_key(message)
+        
+        payload = self.decrypt_payload(transfer_key, message)
 
         # update sequence number
         self.sqn = message.header.sqn

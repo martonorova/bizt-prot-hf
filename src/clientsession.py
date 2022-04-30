@@ -1,7 +1,14 @@
 import session
 import csm
+from message import MessageType, Message, ETK_LEN
+from common import load_publickey
 
 from Crypto.Cipher import PKCS1_OAEP
+from Crypto import Random
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 class ClientSession(session.Session):
     def __init__(self, socket):
@@ -30,3 +37,24 @@ class ClientSession(session.Session):
             self.close()
         
         return etk
+    
+    def retrieve_encrypt_transfer_key(self, typ: MessageType) -> (bytes, bytes):
+        if typ == MessageType.LOGIN_REQ:
+            self.tk = Random.get_random_bytes(32)
+            etk = self.__encrypt_temporary_key(self.tk)
+            transfer_key = self.tk
+        else:
+            etk = b''
+            transfer_key = self.key
+        
+        return (transfer_key, etk)
+
+    def retrieve_decrypt_transfer_key(self, message: Message) -> bytes:
+        if message.typ == MessageType.LOGIN_RES:
+            logging.info("received LOGIN_RES message")
+            transfer_key = self.tk
+            # TODO discard temporary key after successful login process
+        else:
+            transfer_key = self.key
+        
+        return transfer_key
