@@ -49,9 +49,9 @@ class SessionSM:
         timestamp = int(lines[0])
         username = lines[1]
         password = lines[2]
-        random = lines[3]
+        cli_rand = lines[3]
 
-        if len(random) != 16:
+        if len(cli_rand) != 16:
             raise Exception('Invalid random')
 
         if time.time_ns() - timestamp > __ts_diff_threshold_ps:
@@ -61,9 +61,13 @@ class SessionSM:
             raise Exception('Invalid user:passwd pair')
 
         self.__session.user = User(username)
+
+        srv_rand = Random.get_random_bytes(16)
+        req_hash = sha256(payload)
+        self.__session.key = symmetric_key(srv_rand, cli_rand, req_hash)
         self.__state = States.AwaitingCommands
 
-        response_payload_lines = [sha256(payload), Random.get_random_bytes(16)]
+        response_payload_lines = [req_hash, srv_rand]
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
         message = self.__session.encrypt(MessageType.LOGIN_RES, response_payload)
         #TODO send message back to client
@@ -80,7 +84,7 @@ class SessionSM:
         fn = self.__cph__fn_chart.get(cmd)
         if fn is None:
             raise Exception('Invalid CommandType')
-            
+
         fn_results = fn(params)
         cmd_hash = sha256(payload)
         response_payload_lines = [cmd, cmd_hash] + fn_results
