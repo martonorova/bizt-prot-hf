@@ -129,10 +129,10 @@ class ClientSessionSM:
         if len(results) != 3:
             raise Exception('Invalid response payload')
         if results[0] == ACCEPT:
-            fname = self.__state_data
+            local, remote = self.__state_data
             length = results[1]
             hash = results[2]
-            self.__state_data = FileTransferData([fname, length, hash])
+            self.__state_data = FileTransferData([local, length, hash])
             self.__state = States.Downloading
             print('Started download')
             self.__proceed_download()
@@ -245,14 +245,14 @@ class ClientSessionSM:
     def __cmd__upl(self, params: list[str]):
         if len(params) == 3:
             data = __get_file_data(params[1])
-            self.__state_data = FileTransferData([params[1], *data])
+            self.__state_data = FileTransferData([params[2], *data])
             if data:
                 return ['lst', *data]
         return None
 
     def __cmd__dnl(self, params: list[str]):
         if len(params) == 3:
-            self.__state_data = params[1]
+            self.__state_data = params[1], params[2]
             return params
         return None
 
