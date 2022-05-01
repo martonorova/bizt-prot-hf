@@ -4,47 +4,37 @@
 - https://click.palletsprojects.com/en/8.1.x/
 - 
 
-### Meeting 1
-- tervezés, osztályok, idő becslés
-#### POCs
-- kliens-szerver kommunikáció TCP
-- session-ök tárolása
-- szerializáció
-- kommunikáció biztonság nélkül
-
-
-## Design aspects
-
-### Message
-
-- objektum formájában képezze le a MTP Message object-et (minden field egy-egy adattag)
-- szerializálás / deszerializálás
-
-- kétféle validálás
-  - formátum + checksum + aláírás stb
-  - protokoll szerint az adott sessionben ez volt-e a várt?
+## Documentation
 
 ### Server
 
-- több kliens csatlakozhat egyszerre a szerverhez
+Server requests passwd on startup. Other server config from env vars.
 
+- SIFT_APP_ROOT
+- SIFT_TS_DIFF_THRESHOLD
 
-### Server fájlrendszer
+### Client
 
-#### Fájlok
+#### Start
 
+./sift.sh -u \<user> -h \<host> [-p \<port>]
+Password from std io
 
-- fájlok kezelése felhasználók szerint
-- minden felhasználónak külön home könyvtár
-- access control - mindenki csak ott/ír olvas, ami a saját home könyvtárában van
+Commands are the 7 commands from the doc.
 
-#### Felhasználók
+- Standalone commands (no args): [pwd, lst]
+- Single arg commands: [chd, mkd, del]
+- upl <local_path> <remote_path>
+- dnl <local_path> <remote_path>
+- exit
 
-- <username>:<password_hash> párok egy fájlban
+## TODO & bugs
 
-### Session
+- upl & dnl take 2 args target source
 
-- melyik felhasználóhoz tartozik
-- protokollban hol tart? melyik lépés következik? állapotgép
-- melyik mappában dolgozik?
-- socket objektumot el kell tárolni, átadni hívások között
+- upload & download ./../../
+
+- client cli
+
+- login session wait
+
