@@ -5,7 +5,7 @@ from message import MessageType
 import session
 from users import User
 import users
-from files import cmd_chd, cmd_lst, cmd_del, cmd_dnl, cmd_mkd, cmd_pwd, upload, download
+from files import validate_path, cmd_chd, cmd_lst, cmd_del, cmd_dnl, cmd_mkd, cmd_pwd, upload, download
 from crypto_helpers import *
 from math import ceil
 from Crypto import Random
@@ -173,13 +173,16 @@ class SessionSM:
             return [FAILURE]
 
     def __cph__upl(self, params: list[str]):
-        self.__state = States.Uploading
-        self.__state_data = FileTransferData(params)
-        return [ACCEPT]
+        if validate_path(params[0]):
+            self.__state = States.Uploading
+            self.__state_data = FileTransferData(params)
+            return [ACCEPT]
+        else:
+            return [REJECT]
 
     def __cph__dnl(self, params: list[str]):
         data = cmd_dnl(self.__session.user, params[0])
-        if data:
+        if data and validate_path(params[0]):
             self.__state = States.Downloading
             self.__state_data = params[0]
             return [ACCEPT, *data]

@@ -243,7 +243,7 @@ class ClientSessionSM:
         return None
 
     def __cmd__upl(self, params: list[str]):
-        if len(params) == 2:
+        if len(params) == 3:
             data = __get_file_data(params[1])
             self.__state_data = FileTransferData([params[1], *data])
             if data:
@@ -251,7 +251,7 @@ class ClientSessionSM:
         return None
 
     def __cmd__dnl(self, params: list[str]):
-        if len(params) == 2:
+        if len(params) == 3:
             self.__state_data = params[1]
             return params
         return None

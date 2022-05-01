@@ -97,6 +97,13 @@ def cmd_dnl(user: User, fname: str) -> Tuple[str, str]:
         return None
 
 
+def validate_path(user: User, fname: str) -> bool:
+    try:
+        __parse_path(fname)
+    except:
+        return False
+    return True
+
 def upload(user: User, fname: str, data: bytes) -> bool:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
