@@ -1,49 +1,53 @@
 import socket
-import selectors
 import traceback
 import logging
+import socketserver
 
-from session import Session
+import serversession
+from common import load_keypair
+
+from message import Message, MessageType
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
 
-sel = selectors.DefaultSelector()
+keypair = None # initialize before server startup
 
-def accept_wrapper(sock):
-    conn, addr = sock.accept()  # Should be ready to read
-    logging.info(f"Accepted connection from {addr}")
-    conn.setblocking(False)
-    session = Session(sel, conn, addr)
-    sel.register(conn, selectors.EVENT_READ, data=session)
+class TCPHandler(socketserver.BaseRequestHandler):
 
-host, port = '127.0.0.1', 5150
-lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# Avoid bind() exception: OSError: [Errno 48] Address already in use
-lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-lsock.bind((host, port))
-lsock.listen()
-logging.info(f"Listening on {(host, port)}")
-lsock.setblocking(False)
-sel.register(lsock, selectors.EVENT_READ, data=None)
+    def setup(self):
+        self.__session = serversession.ServerSession(self.request, keypair)
 
-try:
-    while True:
-        events = sel.select(timeout=None)
-        for key, mask in events:
-            if key.data is None:
-                accept_wrapper(key.fileobj)
-            else:
-                session = key.data
-                try:
-                    session.process_events(mask)
-                except Exception:
-                    print(
-                        f"Main: Error: Exception for {session.addr}:\n"
-                        f"{traceback.format_exc()}"
-                    )
-                    session.close()
-except KeyboardInterrupt:
-    print("Caught keyboard interrupt, exiting")
-finally:
-    sel.close()
+    def handle(self):
+        client_address: str = self.request.getpeername()[0]
+        client_port: int = self.request.getpeername()[1]
+        logging.info(f"Client connected from {client_address}:{client_port}")
+
+        while True:
+            try:
+                message_type, payload = self.__session.receive()
+            except Exception as e:
+                logging.error(f"{e} from {client_address}:{client_port}")
+                break
+            
+            # TODO pass message to business logic
+            # self.__session.process(message_type, payload)
+
+            response_payload = "TEST_RESPONSE".encode()
+            response_msg = self.__session.encrypt(MessageType.COMMAND_RES, response_payload)
+            self.__session.send(response_msg)
+        logging.info(f"Closed client connection from {client_address}:{client_port}")
+
+if __name__ == "__main__":
+    # TODO listen on all interfaces, accept client connections NOT only from localhost 
+    HOST, PORT = "localhost", 5150
+
+    privkeyfile = 'privkey.pem'
+    keypair = load_keypair(privkeyfile)
+
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    # Create the server, binding to localhost on port 9999
+    with socketserver.ThreadingTCPServer((HOST, PORT), TCPHandler) as server:
+        # Activate the server; this will keep running until you
+        # interrupt the program with Ctrl-C
+        server.serve_forever()

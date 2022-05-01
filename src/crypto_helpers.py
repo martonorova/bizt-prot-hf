@@ -1,8 +1,10 @@
 import json
 import base64
 import hashlib
+import getpass
 from Crypto.Protocol.KDF import HKDF
 from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
 
 
 def sha256(param: bytes):
@@ -26,3 +28,22 @@ def symmetric_key(srv_rand: bytes, cli_rand: bytes, req_hash: bytes) -> bytes:
     salt = req_hash
     symmetric_key = HKDF(master_secret, 32, salt, SHA256, 1)
     return symmetric_key
+
+def load_publickey(pubkeyfile):
+    with open(pubkeyfile, 'rb') as f:
+        pubkeystr = f.read()
+    try:
+        return RSA.import_key(pubkeystr)
+    except ValueError:
+        print('Error: Cannot import public key from file ' + pubkeyfile)
+        sys.exit(1)
+
+def load_keypair(privkeyfile):
+    passphrase = getpass.getpass('Enter a passphrase to decode the saved private key: ')
+    with open(privkeyfile, 'rb') as f:
+        keypairstr = f.read()
+    try:
+        return RSA.import_key(keypairstr, passphrase=passphrase)
+    except ValueError:
+        print('Error: Cannot import private key from file ' + privkeyfile)
+        sys.exit(1)

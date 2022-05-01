@@ -1,134 +1,115 @@
-from message import Message, Header, MessageType, HDR_LEN, MAC_LEN
-from selectors import DefaultSelector
+from message import Message, Header, MessageType, HDR_LEN, MAC_LEN, ETK_LEN
 
-from Crypto.Cipher import AES
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto import Random
 
-import selectors
-
+import sys
+import socket
 import logging
-from sm import SessionSM
+import sm
 from users import User
+from common import load_publickey, load_keypair
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
 
 class Session(object):
-    def __init__(self, selector, socket, addr):
+    def __init__(self, socket: socket.socket):
         self.user : User = None
-        self.sm: SessionSM = SessionSM(self)
-        self.selector : DefaultSelector = selector
-        self.socket = socket
-        self.addr = addr
-        self._recv_buffer = b''
-        self._recv_len = -1 # length of message to wait for in _recv_buffer
-        self._send_buffer = b''
+        self.sm = None
+        self.socket : socket.socket = socket
         self.sqn : int = 0 # sequence number
         self.key : bytes = bytes.fromhex("00" * 32) # the symmetric key TODO set this with Login Protocol
-        self.temp_key : bytes = b'' # temporary key in login sequence
+        self.tk: bytes = b'' # temporary key
 
-    def _set_selector_events_mask(self, mode):
-        """Set selector to listen for events: mode is 'r', 'w', or 'rw'."""
-        if mode == "r":
-            events = selectors.EVENT_READ
-        elif mode == "w":
-            events = selectors.EVENT_WRITE
-        elif mode == "rw":
-            events = selectors.EVENT_READ | selectors.EVENT_WRITE
-        else:
-            raise ValueError(f"Invalid events mask mode {mode!r}.")
-        self.selector.modify(self.socket, events, data=self)
+    def send(self, message: Message):
+        self.socket.sendall(message.serialize())
+        logging.debug(f"Sent Message: {message}")
 
-    def _read(self):
+    def receive(self) -> (MessageType, bytes):
+        data = self.socket.recv(2048) # TODO read based on header length field
+        if len(data) == 0:
+            raise Exception("Read empty data from socket")
+        # if data: # on connection, data is empty --> ignore it
+        message = Message.deserialize(data)
+        logging.debug(f"Received Message: {message}")
+        message_type, payload = self.decrypt(message)
+        logging.debug(f"Received payload: {payload.decode('UTF-8')}")
+
+        return message_type, payload
+
+    def process(self, message_type: MessageType, payload: bytes):
+        if self.sm is None:
+            logging.error("Session state machine is unitialized")
+            self.close()
+        # send message and payload to business logic
         try:
-            # should be ready to read as we received event
-            data = self.socket.recv(1024)
-        except BlockingIOError:
-            # Resource temporarily unavailable (errno EWOULDBLOCK)
-            pass
-        else:
-            if data:
-                self._recv_buffer += data
-            else:
-                raise RuntimeError("Peer closed.")
+            self.sm.receive_message(message_type, payload)
+        except Exception as e:
+            logging.error(
+                f'Error occured'
+                f'{e!r}'
+            )
 
-    def process_events(self, mask):
-        if mask & selectors.EVENT_READ:
-            self.read()
-        if mask & selectors.EVENT_WRITE:
-            self.write()
-
-    def read(self):
-        # read full header + remaining bytes based on header.len
-        self._read()
-
-        # try to process the header
-        if self._recv_len < 0:
-            self.process_header()
-        else:
-            # try to process the rest of the message
-            remaining_length = self._recv_len - HDR_LEN
-            if len(self._recv_buffer) >= remaining_length:
-                try:
-                    message = Message.deserialize(self._recv_buffer[:self._recv_len])
-                    type, payload = self.decrypt_and_process(message)
-                    self.sm.receive_message(type, payload)
-                except Exception as e:
-                    logging.error(
-                        f"Error: Message.deserialize() exception for"
-                        f"{e!r}"
-                    )
-                    # we must close the connection on error
-                    self.close()
-                finally:
-                    # remove processed bytes from buffer
-                    self._recv_buffer = self._recv_buffer[self._recv_len:]
-
-
-
+    # TODO do we need adaptive reading from socket based on header len value?
     def process_header(self):
         if len(self._recv_buffer) >= HDR_LEN:
             # we can parse the length of the message
-            self._recv_len = int.from_bytes(self._recv_buffer[4:6])
+            self._recv_len = int.from_bytes(self._recv_buffer[4:6], byteorder='big')
 
-    def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
-
-        payload_length = len(payload)
-        msg_length = HDR_LEN + payload_length + MAC_LEN
-        self.sqn += 1
-
-        header = Header(
-            ver=b'\x01\x00',
-            typ=typ,
-            len=msg_length,
-            sqn=self.sqn,
-            rnd=Random.get_random_bytes(6),
-            rsv=b'\x00\x00'
-        )
-
-        nonce = header.sqn.to_bytes(2, byteorder='big') + header.rnd
-        AE = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
+    def encrypt_payload(self, key, header, payload) -> (bytes, bytes):
+        nonce = header.nonce
+        AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(header.serialize())
         encrypted_payload, authtag = AE.encrypt_and_digest(payload)
 
-        return Message(header, encrypted_payload, authtag)
+        return (encrypted_payload, authtag)
+    
+    # TODO maybe separated between ServerSession and ClientSession
+    def calculate_header_len(self, typ: MessageType, payload: bytes) -> int:
+        base_length = HDR_LEN + len(payload) + MAC_LEN
+        return base_length + ETK_LEN if typ == MessageType.LOGIN_REQ else base_length
 
-    def decrypt_and_process(self, message: Message):
-        # length check already happend during deserialization
+    def create_header(self, typ: MessageType, payload: bytes) -> Header:
+        msg_length = self.calculate_header_len(typ, payload)
+        self.sqn += 1
+        header = Header(
+                ver=b'\x01\x00',
+                typ=typ,
+                length=msg_length, #
+                sqn=self.sqn,
+                rnd=Random.get_random_bytes(6),
+                rsv=b'\x00\x00'
+            )
+        return header
 
-        # validate sequence number
+    # returns the transfer key and its encrypted form if needed based on the MessageType
+    # should initialize temporary key if needed based on the MessageType
+    def retrieve_encrypt_transfer_key(self, typ: MessageType) -> (bytes, bytes):
+        raise NotImplementedError("Called from base Session instance!")
+
+    def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
+        header = self.create_header(typ, payload)
+        
+        transfer_key, etk = self.retrieve_encrypt_transfer_key(typ)
+
+        # encrypt payload
+        encrypted_payload, authtag = self.encrypt_payload(transfer_key, header, payload)
+
+        return Message(header, encrypted_payload, authtag, etk)
+    
+    def validate_sqn(self, sqn_to_validate: int):
         logging.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
-        if (message.header.sqn <= self.sqn):
-            raise ValueError("Message sequence number is too old!")
+        if (sqn_to_validate <= self.sqn):
+            raise ValueError(f"Message sequence number is too old: {message.header.sqn}!")
         logging.debug(f"Sequence number verification is successful.")
 
-        # TODO handle login request decryption
-
+    def decrypt_payload(self, key: bytes, message: Message) -> bytes:
         logging.debug("Attempt decryption and authentication tag verification...")
-        nonce = message.header.sqn.to_bytes(2, byteorder='big') + message.header.rnd
-        AE = AES.new(self.key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
+        nonce = message.header.nonce
+        AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(message.header.serialize())
-
         try:
             payload = AE.decrypt_and_verify(message.epd, message.mac)
         except Exception as e:
@@ -136,28 +117,32 @@ class Session(object):
             raise e
         logging.debug("Operation was successful: message is intact, content is decrypted")
 
-        # TODO process payload based on MessageType
-        logging.info(f"Received payload: {payload.decode('UTF-8')}")
+        return payload
 
-        # TODO reset state related to reading from the socket
+    def retrieve_decrypt_transfer_key(self, message: Message) -> (bytes, bytes):
+        raise NotImplementedError("Called from base Session instance!")
 
-        # Set selector to listen for write events, we're done reading.
-        self._set_selector_events_mask("w")
+    def decrypt(self, message: Message) -> (MessageType, bytes):
+        # NOTE: length check already happened during message deserialization
+        # validate sequence number
+        self.validate_sqn(message.header.sqn)
+
+        transfer_key = self.retrieve_decrypt_transfer_key(message)
+        
+        payload = self.decrypt_payload(transfer_key, message)
+
+        # update sequence number
+        self.sqn = message.header.sqn
+        
+        return (message.header.typ, payload)
 
     def close(self):
-        logging.info(f"Closing connection to {self.addr}")
-        try:
-            self.selector.unregister(self.socket)
-        except Exception as e:
-            logging.error(
-                f"Error: selector.unregister() exception for "
-                f"{self.addr}: {e!r}"
-            )
+        logging.info(f"Closing connection")
 
         try:
             self.socket.close()
         except OSError as e:
-            logging.error(f"Error: socket.close() exception for {self.addr}: {e!r}")
+            logging.error(f"Error: socket.close() exception: {e!r}")
         finally:
             # Delete reference to socket object for garbage collection
             self.socket = None

@@ -61,7 +61,7 @@ class ClientSessionSM:
         lines = payload.decode("utf-8").split('\n')
         request_hash = lines[0]
         server_random = lines[1]
-        if len(server_random) is not 16:
+        if len(server_random) != 16:
             raise Exception('Invalid random')
         if request_hash != self.__prev_req_hash:
             raise Exception('Invalid hash')
@@ -185,7 +185,7 @@ class ClientSessionSM:
         state_data.buffer += payload
 
         if type is MessageType.DOWNLOAD_RES_0:
-            if len(payload) is not 1024:
+            if len(payload) != 1024:
                 raise Exception('Invalid fragment size')
 
         if type is MessageType.DOWNLOAD_RES_1:

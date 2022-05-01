@@ -2,7 +2,7 @@ from enum import Enum
 import time
 from common import ACCEPT, FAILURE, REJECT, SUCCESS, FileTransferData, READY, CANCEL
 from message import MessageType
-from session import Session
+import session
 from users import User
 import users
 from files import cmd_chd, cmd_lst, cmd_del, cmd_dnl, cmd_mkd, cmd_pwd, upload, download
@@ -22,7 +22,7 @@ ts_diff_threshold = options.ts_diff_threshold
 __ts_diff_threshold_ps = 1000*1000*1000*0.5 * ts_diff_threshold
 
 class SessionSM:
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session) -> None:
         self.__session = session
         self.__state = States.Connecting
         self.__state_chart = {
@@ -100,7 +100,7 @@ class SessionSM:
         state_data.buffer += payload
 
         if type is MessageType.UPLOAD_REQ_0:
-            if len(payload) is not 1024:
+            if len(payload) != 1024:
                 raise Exception('Invalid fragment size')
 
         if type is MessageType.UPLOAD_REQ_1:
