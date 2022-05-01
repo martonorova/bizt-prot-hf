@@ -39,6 +39,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
         logging.info(f"Closed client connection from {client_address}:{client_port}")
 
 if __name__ == "__main__":
+    # TODO listen on all interfaces, accept client connections NOT only from localhost 
     HOST, PORT = "localhost", 5150
 
     privkeyfile = 'privkey.pem'

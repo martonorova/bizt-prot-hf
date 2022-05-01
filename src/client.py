@@ -60,11 +60,10 @@ class Client:
         self.__send(data)
         return self.__receive()
 
-
+# TODO get connection settings from commandline arguments
 client = Client("localhost", 5150)
 
 # res = client.make_req_sync(b'hello server 1')
-
 # print(res)
 
 # time.sleep(5)
