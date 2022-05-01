@@ -13,12 +13,11 @@ logging.basicConfig(level=logging.DEBUG)
 class Client:
     def __init__(self, user, password, host, port):
         self.user = user
-        self.password = password
         self.addr = (host, port)
         self.__session : clientsession.ClientSession = None
 
         self.__connect()
-        self.__perform_login()
+        self.__perform_login(password)
 
     def __del__(self):
         if self.__session is not None:
@@ -30,12 +29,13 @@ class Client:
         logging.debug("Client connected to server")
         self.__session = clientsession.ClientSession(sock)
 
-    def __perform_login(self):
+    def __perform_login(self, password):
         if self.__session is None:
             logging.error("Client session not initialized")
             sys.exit(1)
 
-        self.__session.login(self.user, self.password)
+        # TODO store user in session after successful login sequence
+        self.__session.login(self.user, password)
         self.__receive()
 
     # TODO wont need this in final form
@@ -78,11 +78,6 @@ class Client:
 @click.option('--port', '-p', type=click.INT, help='SIFT server port number', default=5150, show_default=True, required=True)
 def cli(user, host, port):
     password = click.prompt(f'Enter password for user "{user}"', type=str, hide_input=True)
-
-    click.echo('user= ' + str(user))
-    click.echo('password= ' + str(password))
-    click.echo('host= ' + str(host))
-    click.echo('port= ' + str(port))
 
     client = Client(user, password, host, port)
 
