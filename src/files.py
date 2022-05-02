@@ -99,18 +99,19 @@ def cmd_dnl(user: User, fname: str) -> Tuple[str, str]:
 
 def validate_path(user: User, fname: str) -> bool:
     try:
-        __parse_path(user, fname)
+        __create_home(user)
+        os_path = __os_path_prefix(user) + __join_path(__parse_path(user, fname)[:-1])
+        return exists(os_path) and os.path.isdir(os_path)
     except:
         return False
-    return True
 
 def upload(user: User, fname: str, data: bytes) -> bool:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(__parse_path(user, fname))
-    save_file(os_path, data)
+    return save_file(os_path, data)
 
 
-def save_file(path: str, data: bytes):
+def save_file(path: str, data: bytes) -> bool:
     try:
         with open(path, "wb") as f:
             f.write(data)
