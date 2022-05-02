@@ -2,7 +2,7 @@ from enum import Enum
 import time
 from common import ACCEPT, FAILURE, REJECT, SUCCESS, FileTransferData, READY, CANCEL
 from message import MessageType
-import session
+import serversession
 from users import User
 import users
 from files import validate_path, cmd_chd, cmd_lst, cmd_del, cmd_dnl, cmd_mkd, cmd_pwd, upload, download
@@ -23,7 +23,9 @@ __ts_diff_threshold_ps = 1000*1000*1000*0.5 * ts_diff_threshold
 
 class SessionSM:
     def __init__(self, session) -> None:
-        self.__session = session
+        ts_diff_threshold = options.ts_diff_threshold
+        self.__ts_diff_threshold_ps = 1000*1000*1000*0.5 * ts_diff_threshold
+        self.__session: serversession.ServerSession = session
         self.__state = States.Connecting
         self.__state_chart = {
             States.Connecting: self.__login_protocol_handler,
@@ -36,8 +38,6 @@ class SessionSM:
     # Receive message from the session
     def receive_message(self, type: MessageType, payload: bytes):
         self.__state_chart[self.__state](type, payload)
-        # TODO
-        return
 
     # <region: Login Protocol request handler>
     def __login_protocol_handler(self, type: MessageType, payload: bytes) -> None:
@@ -49,28 +49,29 @@ class SessionSM:
         timestamp = int(lines[0])
         username = lines[1]
         password = lines[2]
-        cli_rand = lines[3]
+        cli_rand = bytes.fromhex(lines[3])
 
         if len(cli_rand) != 16:
             raise Exception('Invalid random')
 
-        if time.time_ns() - timestamp > __ts_diff_threshold_ps:
+        if abs(time.time_ns() - timestamp) > self.__ts_diff_threshold_ps:
             raise Exception('Invalid timestamp')
 
-        if users.authenticate(username, password):
+        if not users.authenticate(username, password):
             raise Exception('Invalid user:passwd pair')
 
         self.__session.user = User(username)
+        self.__session.tk = None
 
         srv_rand = Random.get_random_bytes(16)
-        req_hash = sha256(payload)
+        req_hash = sha256b(payload)
         self.__session.key = symmetric_key(srv_rand, cli_rand, req_hash)
         self.__state = States.AwaitingCommands
 
-        response_payload_lines = [req_hash, srv_rand]
+        response_payload_lines = [req_hash.hex(), srv_rand.hex()]
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
         message = self.__session.encrypt(MessageType.LOGIN_RES, response_payload)
-        #TODO send message back to client
+        self.__session.send(message)
     # </region: Login Protocol request handler>
 
     # <region: High level request handlers>
@@ -90,7 +91,7 @@ class SessionSM:
         response_payload_lines = [cmd, cmd_hash] + fn_results
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
         message = self.__session.encrypt(MessageType.COMMAND_RES, response_payload)
-        #TODO send message back to client
+        self.__session.send(message)
 
     def __upload_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if not(type is MessageType.UPLOAD_REQ_0 or type is MessageType.UPLOAD_REQ_1):
@@ -114,7 +115,7 @@ class SessionSM:
             response_payload_lines = [state_data.file_hash, state_data.file_size]
             response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
             message = self.__session.encrypt(MessageType.UPLOAD_RES, response_payload)
-            #TODO send message back to client
+            self.__session.send(message)
 
     def __download_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if not(type is MessageType.DOWNLOAD_REQ):
@@ -131,7 +132,7 @@ class SessionSM:
                 fragment = data[i*1024:i*1024+1024]
                 response_type = MessageType.DOWNLOAD_RES_1 if fragment_count == i+1 else MessageType.DOWNLOAD_RES_0
                 message = self.__session.encrypt(response_type, fragment)
-                #TODO send message to client
+                self.__session.send(message)
 
         self.__state_data = None
         self.__state = States.AwaitingCommands

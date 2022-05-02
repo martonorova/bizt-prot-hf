@@ -5,12 +5,18 @@ import getpass
 from Crypto.Protocol.KDF import HKDF
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
+import sys
 
-
-def sha256(param: bytes):
+def sha256(param: bytes) -> str:
     m = hashlib.sha256()
     m.update(param)
     return m.digest().hex()
+
+
+def sha256b(param: bytes) -> bytes:
+    m = hashlib.sha256()
+    m.update(param)
+    return m.digest()
 
 
 def base64_encode(list: list[str]):

@@ -1,27 +1,23 @@
 from typing import Tuple
 from message import Message, Header, MessageType, HDR_LEN, MAC_LEN, ETK_LEN
 
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Cipher import AES
 from Crypto import Random
 
-import sys
 import socket
 import logging
-import sm
 from users import User
-from common import load_publickey, load_keypair
 
 # TODO set this from env var
 logging.basicConfig(level=logging.DEBUG)
 
 class Session(object):
-    def __init__(self, socket: socket.socket):
+    def __init__(self, _socket: socket.socket):
         self.user : User = None
         self.sm = None
-        self.socket : socket.socket = socket
+        self.socket : socket.socket = _socket
         self.sqn : int = 0 # sequence number
-        self.key : bytes = bytes.fromhex("00" * 32) # the symmetric key TODO set this with Login Protocol
+        self.key : bytes = None
         self.tk: bytes = b'' # temporary key
 
     def send(self, message: Message):
@@ -48,6 +44,9 @@ class Session(object):
         try:
             self.sm.receive_message(message_type, payload)
         except Exception as e:
+            self.close()
+            # TODO close client program on exception
+            # TODO close server session gracefuly 
             logging.error(
                 f'Error occured'
                 f'{e!r}'
@@ -61,7 +60,7 @@ class Session(object):
 
         return (encrypted_payload, authtag)
     
-    # TODO maybe separated between ServerSession and ClientSession
+
     def calculate_header_len(self, typ: MessageType, payload: bytes) -> int:
         base_length = HDR_LEN + len(payload) + MAC_LEN
         return base_length + ETK_LEN if typ == MessageType.LOGIN_REQ else base_length

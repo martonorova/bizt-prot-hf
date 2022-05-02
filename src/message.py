@@ -58,7 +58,7 @@ class Header(object):
         ver = raw_header[:2]
         if ver != bytes.fromhex("01 00"):
             raise ValueError(f"[DESERIALIZE_FAILED] invalid version: {ver}")
-        
+
         # type
         try:
             typ = MessageType(raw_header[2:4])
@@ -77,7 +77,7 @@ class Header(object):
             raise ValueError(f"[DESERIALIZE_FAILED] invalid reserved field: {rsv}")
 
         return Header(ver, typ, length, sqn, rnd, rsv)
-    
+
     @property
     def nonce(self) -> bytes:
         return self.sqn.to_bytes(2, byteorder='big') + self.rnd
@@ -85,7 +85,7 @@ class Header(object):
 
 class Message(object):
     def __init__(self, header: Header, epd: bytes, mac: bytes, etk: bytes = b''):
-        self.header : Header = header 
+        self.header : Header = header
         self.epd : bytes = epd
         self.mac : bytes = mac
         self.etk : bytes = etk
@@ -102,7 +102,7 @@ class Message(object):
             Mac (mac): {self.mac.hex()}
             Encrytped Temporary Key (etk): {self.etk.hex()}
         """
-            
+
     def serialize(self) -> bytes:
         return self.header.serialize() + \
             self.epd + \
@@ -125,15 +125,11 @@ class Message(object):
             epd = raw_message[HDR_LEN:-MAC_LEN]
             mac = raw_message[-MAC_LEN:]
             etk = b''
-        
-        message = Message(h, epd, mac, etk)
 
-        # TODO validate message
+        message = Message(h, epd, mac, etk)
 
         if message.header.length != len(raw_message):
             raise ValueError(f"[VALIDATION_FAILED] Message length error")
 
         return message
-
-
 

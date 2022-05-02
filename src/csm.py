@@ -18,7 +18,7 @@ class States(Enum):
 
 
 ts_diff_threshold = options.ts_diff_threshold
-__ts_diff_threshold_ps = 1000*1000*1000*0.5 * ts_diff_threshold
+__ts_diff_threshold_ns = 1000*1000*1000*0.5 * ts_diff_threshold
 
 
 class ClientSessionSM:
@@ -42,12 +42,12 @@ class ClientSessionSM:
     def login(self, user, passwd):
         cli_rand = Random.get_random_bytes(16)
         self.__state_data = cli_rand
-        response_payload_lines = [time.time_ns(), user, passwd, cli_rand]
+        response_payload_lines = [str(time.time_ns()), user, passwd, cli_rand.hex()]
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
         self.__prev_req_hash = sha256(response_payload)
         message = self.__session.encrypt(
-            MessageType.LOGIN_RES, response_payload)
-        #TODO
+            MessageType.LOGIN_REQ, response_payload)
+        self.__session.send(message)
 
     # <region: Login Protocol response handler>
     def __login_response_handler(self, type: MessageType, payload: bytes):
@@ -62,6 +62,7 @@ class ClientSessionSM:
         if request_hash != self.__prev_req_hash:
             raise Exception('Invalid hash')
 
+        self.__session.tk = None
         self.__session.key = symmetric_key(server_random, self.__state_data, request_hash)
         self.__prev_req_hash = None
         self.__state_data = None
@@ -169,7 +170,7 @@ class ClientSessionSM:
             fragment = data[i*1024:i*1024+1024]
             response_type = MessageType.UPLOAD_REQ_1 if fragment_count == i+1 else MessageType.UPLOAD_REQ_0
             message = self.__session.encrypt(response_type, fragment)
-            #TODO send message
+            self.__session.send(message)
     # </region: Upload Protocol>
 
     # <region: Download Protocol>
@@ -199,7 +200,7 @@ class ClientSessionSM:
     def __proceed_download(self):
         payload = READY.encode('UTF-8')
         message = self.__session.encrypt(MessageType.DOWNLOAD_REQ, payload)
-        #TODO send message
+        self.__session.send(message)
     # </region: Download Protocol>
 
 
@@ -225,7 +226,7 @@ class ClientSessionSM:
         request_payload = '\n'.join(result).encode('UTF-8')
         self.__prev_req_hash = cmd, sha256(request_payload)
         message = self.__session.encrypt(MessageType.COMMAND_REQ, request_payload)
-        #TODO
+        self.__session.send(message)
 
 
     def __cmd__standalone(self, params: list[str]):

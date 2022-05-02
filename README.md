@@ -30,7 +30,6 @@ Commands are the 7 commands from the doc.
 
 ## TODO & bugs
 
-- client cli
+- load public and private key from arg path
 
-- login session wait
-
+- exception levels

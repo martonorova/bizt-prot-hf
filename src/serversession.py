@@ -1,7 +1,7 @@
+from typing import Tuple
 import session
 import sm
 from message import MessageType, Message
-from common import load_keypair
 
 from Crypto.Cipher import PKCS1_OAEP
 
@@ -21,7 +21,7 @@ class ServerSession(session.Session):
         temp_key = RSAcipher.decrypt(etk)
         return temp_key
 
-    def retrieve_encrypt_transfer_key(self, typ: MessageType) -> (bytes, bytes):
+    def retrieve_encrypt_transfer_key(self, typ: MessageType) -> Tuple[bytes, bytes]:
         if typ == MessageType.LOGIN_RES:
             if len(self.tk) == 0:
                 logging.error("no temporary key stored")
@@ -37,8 +37,7 @@ class ServerSession(session.Session):
         if message.typ == MessageType.LOGIN_REQ:
             logging.info("received LOGIN_REQ message")
             self.tk = self.__decrypt_temporary_key(message.etk)
-            transfer_key = self.tk
-            # TODO discard temporary key after successful login process           
+            transfer_key = self.tk      
         else:
             transfer_key = self.key
 

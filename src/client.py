@@ -33,36 +33,19 @@ class Client:
             logging.error("Client session not initialized")
             sys.exit(1)
 
-        # TODO store user in session after successful login sequence
         self.__session.login(self.user, password)
         self.__receive()
-
-    # TODO wont need this in final form
-    def __send(self, data: bytes):
-        logging.debug(f"Client attempting to send {data}")
-
-        # TODO wont need this in final form
-        message = self.__session.encrypt(MessageType.COMMAND_REQ, data)
-
-        # TODO in final form, send a Message object from ClientStateMachine
-        self.__session.send(message)
-
-    def __receive(self) -> bytes:
-        return self.__session.receive()
-
-    # sends data and waits for response
-    # TODO wont need this in final form
-    def make_req_sync(self, data: bytes) -> bytes:
-        self.__send(data)
-        return self.__receive()
     
     def process_command(self, command: str):
         self.__session.command(command)
-        # TODO wait for response
-        # self.__session.receive()
+        self.__receive()
 
     def close(self):
         self.__session.close()
+
+    def __receive(self):
+        typ, payload = self.__session.receive()
+        self.__session.process(typ, payload)
 
 # res = client.make_req_sync(b'hello server 1')
 # print(res)
@@ -72,7 +55,7 @@ class Client:
 # print(res)
 
 @click.command()
-@click.option('--user', '-u', type=click.STRING, help='Username to connect to a SIFT server', required=True)
+@click.option('--user', '-u', type=click.STRING, help='Username to connect to a SIFT server', required=True, default='alice', show_default=True)
 @click.option('--host', '-h', type=click.STRING, help='SIFT server host', default='localhost', show_default=True, required=True)
 @click.option('--port', '-p', type=click.INT, help='SIFT server port number', default=5150, show_default=True, required=True)
 def cli(user, host, port):
