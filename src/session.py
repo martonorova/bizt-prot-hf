@@ -7,7 +7,7 @@ from Crypto import Random
 import socket
 import logging
 from users import User
-from common import init_logging
+from common import init_logging, BrakeListeningException
 
 init_logging()
 logger = logging.getLogger(__name__)
@@ -43,6 +43,8 @@ class Session(object):
         # send message and payload to business logic
         try:
             self.sm.receive_message(message_type, payload)
+        except BrakeListeningException:
+            raise
         except Exception as e:
             self.close()
             # TODO close client program on exception

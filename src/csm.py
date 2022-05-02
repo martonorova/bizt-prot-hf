@@ -67,7 +67,6 @@ class ClientSessionSM:
         self.__state_data = None
         self.__state = States.Commanding
         self.__session.tk = None
-        raise BrakeListeningException()
     # </region: Login Protocol response handler>
 
     # <region: Command Protocol response handlers>

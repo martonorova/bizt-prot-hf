@@ -6,7 +6,7 @@ import click
 import clientsession
 
 from message import MessageType
-from common import SoftException, init_logging
+from common import SoftException, init_logging, BrakeListeningException
 from crypto_helpers import load_publickey
 
 init_logging()
@@ -43,9 +43,15 @@ class Client:
     def process_command(self, command: str):
         try:
             self.__session.command(command)
-            self.__receive()
+            try:
+                while True:
+                    self.__receive()
+            except BrakeListeningException:
+                logger.debug('End of processing commnad responses')
         except SoftException as e:
             logger.warning(e)
+        
+        
 
     def close(self):
         self.__session.close()
