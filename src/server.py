@@ -2,6 +2,7 @@ import socket
 import traceback
 import logging
 import socketserver
+import click
 
 import serversession
 from crypto_helpers import load_keypair
@@ -17,7 +18,7 @@ keypair = None # initialize before server startup
 class TCPHandler(socketserver.BaseRequestHandler):
 
     def setup(self):
-        self.__session = serversession.ServerSession(self.request, keypair)
+        self.__session = serversession.ServerSession(self.request, self.server.keypair)
 
     def handle(self):
         client_address: str = self.request.getpeername()[0]
@@ -33,17 +34,23 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 break
         logger.info(f"Closed client connection from {client_address}:{client_port}")
 
-if __name__ == "__main__":
-    # listen on all interfaces, accept client connections NOT only from localhost 
-    HOST, PORT = "", 5150
 
-    # TODO from args
-    privkeyfile = 'privkey.pem'
+@click.command()
+@click.option('--host', '-h', type=click.STRING, help='Host to listen on, defaults to all interfaces', required=True, default='', show_default=True)
+@click.option('--port', '-p', type=click.INT, help='Port to listen on', required=True, default=5150, show_default=True)
+@click.option('--privkeyfile', '-k', type=click.STRING, help='Server private key file in PEM format', required=True, default='privkey.pem', show_default=True)
+def cli(host, port, privkeyfile):
+
     keypair = load_keypair(privkeyfile)
 
     socketserver.ThreadingTCPServer.allow_reuse_address = True
-    with socketserver.ThreadingTCPServer((HOST, PORT), TCPHandler) as server:
+    with socketserver.ThreadingTCPServer((host, port), TCPHandler) as server:
         logger.info('Server started...')
+        server.keypair = keypair
         # Activate the server; this will keep running until you
         # interrupt the program with Ctrl-C
         server.serve_forever()
+
+
+if __name__ == "__main__":
+    cli()
