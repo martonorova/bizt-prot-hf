@@ -2,14 +2,16 @@ from typing import Tuple
 import session
 import csm
 from message import MessageType, Message, ETK_LEN
-from common import load_publickey
+from crypto_helpers import load_publickey
+from common import init_logging
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto import Random
 
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+init_logging()
+logger = logging.getLogger(__name__)
 
 class ClientSession(session.Session):
     def __init__(self, socket):
@@ -36,7 +38,7 @@ class ClientSession(session.Session):
         # encrypt temporary key
         etk = RSAcipher.encrypt(temp_key)
         if len(etk) != ETK_LEN:
-            logging.error(f"etk length is {len(etk)} insead of {ETK_LEN}")
+            logger.error(f"etk length is {len(etk)} insead of {ETK_LEN}")
             self.close()
 
         return etk
@@ -54,7 +56,7 @@ class ClientSession(session.Session):
 
     def retrieve_decrypt_transfer_key(self, message: Message) -> bytes:
         if message.typ == MessageType.LOGIN_RES:
-            logging.info("received LOGIN_RES message")
+            logger.info("received LOGIN_RES message")
             transfer_key = self.tk
         else:
             transfer_key = self.key

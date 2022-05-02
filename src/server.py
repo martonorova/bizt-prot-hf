@@ -4,12 +4,13 @@ import logging
 import socketserver
 
 import serversession
-from common import load_keypair
+from crypto_helpers import load_keypair
+from common import init_logging
 
 from message import Message, MessageType
 
-# TODO set this from env var
-logging.basicConfig(level=logging.DEBUG)
+init_logging()
+logger = logging.getLogger(__name__)
 
 keypair = None # initialize before server startup
 
@@ -21,16 +22,16 @@ class TCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         client_address: str = self.request.getpeername()[0]
         client_port: int = self.request.getpeername()[1]
-        logging.info(f"Client connected from {client_address}:{client_port}")
+        logger.info(f"Client connected from {client_address}:{client_port}")
 
         while True:
             try:
                 message_type, payload = self.__session.receive()
                 self.__session.process(message_type, payload)
             except Exception as e:
-                logging.error(f"{e} from {client_address}:{client_port}")
+                logger.error(f"{e} from {client_address}:{client_port}")
                 break
-        logging.info(f"Closed client connection from {client_address}:{client_port}")
+        logger.info(f"Closed client connection from {client_address}:{client_port}")
 
 if __name__ == "__main__":
     # listen on all interfaces, accept client connections NOT only from localhost 
@@ -42,6 +43,7 @@ if __name__ == "__main__":
 
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer((HOST, PORT), TCPHandler) as server:
+        logger.info('Server started...')
         # Activate the server; this will keep running until you
         # interrupt the program with Ctrl-C
         server.serve_forever()

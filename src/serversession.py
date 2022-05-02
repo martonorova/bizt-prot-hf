@@ -4,11 +4,12 @@ import sm
 from message import MessageType, Message
 
 from Crypto.Cipher import PKCS1_OAEP
+from common import init_logging
 
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
-
+init_logging()
+logger = logging.getLogger(__name__)
 class ServerSession(session.Session):
     def __init__(self, socket, keypair):
         super().__init__(socket)
@@ -24,7 +25,7 @@ class ServerSession(session.Session):
     def retrieve_encrypt_transfer_key(self, typ: MessageType) -> Tuple[bytes, bytes]:
         if typ == MessageType.LOGIN_RES:
             if len(self.tk) == 0:
-                logging.error("no temporary key stored")
+                logger.error("no temporary key stored")
                 self.close()
             transfer_key = self.tk
         else:
@@ -35,7 +36,7 @@ class ServerSession(session.Session):
 
     def retrieve_decrypt_transfer_key(self, message: Message) -> bytes:
         if message.typ == MessageType.LOGIN_REQ:
-            logging.info("received LOGIN_REQ message")
+            logger.info("received LOGIN_REQ message")
             self.tk = self.__decrypt_temporary_key(message.etk)
             transfer_key = self.tk      
         else:

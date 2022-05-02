@@ -6,9 +6,11 @@ import click
 import clientsession
 
 from message import MessageType
+from common import init_logging
 
-# TODO set this from env var
-logging.basicConfig(level=logging.DEBUG)
+init_logging()
+logger = logging.getLogger(__name__)
+
 class Client:
     def __init__(self, user, password, host, port):
         self.user = user
@@ -25,12 +27,12 @@ class Client:
     def __connect(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(self.addr)
-        logging.debug("Client connected to server")
+        logger.debug("Client connected to server")
         self.__session = clientsession.ClientSession(sock)
 
     def __perform_login(self, password):
         if self.__session is None:
-            logging.error("Client session not initialized")
+            logger.error("Client session not initialized")
             sys.exit(1)
 
         self.__session.login(self.user, password)
