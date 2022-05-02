@@ -30,10 +30,6 @@ Commands are the 7 commands from the doc.
 
 ## TODO & bugs
 
-- upl & dnl take 2 args target source
-
-- upload & download ./../../
-
 - client cli
 
 - login session wait

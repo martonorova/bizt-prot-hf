@@ -22,7 +22,7 @@ def __join_path(list: list[str]) -> str:
 
 def __parse_path(user: User, path: str) -> list[str]:
     pwd = user.pwd
-    ss = path.split('/')
+    ss = path.replace('\\','/').split('/')
     # path if absolute
     ret = [] if ss[0] == '' else pwd.copy()
 
@@ -106,7 +106,7 @@ def validate_path(user: User, fname: str) -> bool:
 
 def upload(user: User, fname: str, data: bytes) -> bool:
     __create_home(user)
-    os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
+    os_path = __os_path_prefix(user) + __join_path(__parse_path(user, fname))
     save_file(os_path, data)
 
 
@@ -121,7 +121,7 @@ def save_file(path: str, data: bytes):
 
 def download(user: User, fname: str) -> bytes:
     __create_home(user)
-    os_path = __os_path_prefix(user) + __join_path(user.pwd) + '/' + fname
+    os_path = __os_path_prefix(user) + __join_path(__parse_path(user, fname))
     return get_file(os_path)
 
 
