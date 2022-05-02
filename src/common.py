@@ -1,12 +1,13 @@
 from crypto_helpers import sha256
+from options import log_level
 
 import logging
 
 def init_logging():
     logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)s] %(message)s',
         datefmt='%Y-%m-%d:%H:%M:%S',
-        level=logging.DEBUG) # TODO read this from env var
-        
+        level=log_level)
+
 class FileTransferData():
     def __init__(self, params: list[str]) -> None:
         self.file_name = params[0]
