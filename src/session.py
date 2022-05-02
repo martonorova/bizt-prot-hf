@@ -1,3 +1,4 @@
+from typing import Tuple
 from message import Message, Header, MessageType, HDR_LEN, MAC_LEN, ETK_LEN
 
 from Crypto.PublicKey import RSA
@@ -27,7 +28,7 @@ class Session(object):
         self.socket.sendall(message.serialize())
         logging.debug(f"Sent Message: {message}")
 
-    def receive(self) -> (MessageType, bytes):
+    def receive(self) -> Tuple[MessageType, bytes]:
         data = self.socket.recv(2048) # messages do not exceed 1kB + MTP overhead
         if len(data) == 0:
             raise Exception("Read empty data from socket")
@@ -52,7 +53,7 @@ class Session(object):
                 f'{e!r}'
             )
 
-    def encrypt_payload(self, key, header, payload) -> (bytes, bytes):
+    def encrypt_payload(self, key, header, payload) -> Tuple[bytes, bytes]:
         nonce = header.nonce
         AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(header.serialize())
@@ -80,7 +81,7 @@ class Session(object):
 
     # returns the transfer key and its encrypted form if needed based on the MessageType
     # should initialize temporary key if needed based on the MessageType
-    def retrieve_encrypt_transfer_key(self, typ: MessageType) -> (bytes, bytes):
+    def retrieve_encrypt_transfer_key(self, typ: MessageType) -> Tuple[bytes, bytes]:
         raise NotImplementedError("Called from base Session instance!")
 
     def encrypt(self, typ: MessageType, payload: bytes) -> 'Message':
@@ -96,7 +97,7 @@ class Session(object):
     def validate_sqn(self, sqn_to_validate: int):
         logging.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
         if (sqn_to_validate <= self.sqn):
-            raise ValueError(f"Message sequence number is too old: {message.header.sqn}!")
+            raise ValueError(f"Message sequence number is too old: {sqn_to_validate}!")
         logging.debug(f"Sequence number verification is successful.")
 
     def decrypt_payload(self, key: bytes, message: Message) -> bytes:
@@ -113,10 +114,10 @@ class Session(object):
 
         return payload
 
-    def retrieve_decrypt_transfer_key(self, message: Message) -> (bytes, bytes):
+    def retrieve_decrypt_transfer_key(self, message: Message) -> Tuple[bytes, bytes]:
         raise NotImplementedError("Called from base Session instance!")
 
-    def decrypt(self, message: Message) -> (MessageType, bytes):
+    def decrypt(self, message: Message) -> Tuple[MessageType, bytes]:
         # NOTE: length check already happened during message deserialization
         # validate sequence number
         self.validate_sqn(message.header.sqn)

@@ -1,6 +1,7 @@
 from enum import Enum
 import time
 from typing import Tuple
+import clientsession
 from message import MessageType
 from session import Session
 from files import get_file, save_file
@@ -21,12 +22,8 @@ ts_diff_threshold = options.ts_diff_threshold
 __ts_diff_threshold_ps = 1000*1000*1000*0.5 * ts_diff_threshold
 
 
-class ClientSession:
-    pass
-
-
 class ClientSessionSM:
-    def __init__(self, session: ClientSession) -> None:
+    def __init__(self, session: clientsession.ClientSession) -> None:
         self.__session = session
         self.__state = States.Unauthorized
         self.__state_chart = {
