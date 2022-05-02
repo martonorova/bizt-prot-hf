@@ -2,7 +2,6 @@
 
 ### Tools
 - https://click.palletsprojects.com/en/8.1.x/
-- 
 
 ## Documentation
 
@@ -30,12 +29,8 @@ Commands are the 7 commands from the doc.
 
 ## TODO & bugs
 
-- load public and private key from arg path
-
-- exception levels
+- READ SPECIFICATION!!!
 
 - session read based on header
-
-- logging
 
 - egyszerre ugyanaz az a user csak egyszer
