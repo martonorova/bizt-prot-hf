@@ -26,3 +26,11 @@ FAILURE = 'failure'
 
 READY = 'Ready'
 CANCEL = 'Cancel'
+
+
+class SoftException(Exception):
+    pass
+
+class HardException(Exception):
+    pass
+

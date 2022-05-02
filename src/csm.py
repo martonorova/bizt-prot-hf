@@ -8,7 +8,7 @@ from crypto_helpers import *
 from math import ceil
 from Crypto import Random
 import options
-from common import ACCEPT, FAILURE, REJECT, SUCCESS, FileTransferData, READY, CANCEL
+from common import *
 
 class States(Enum):
     Unauthorized = 0

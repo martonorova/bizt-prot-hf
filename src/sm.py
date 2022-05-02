@@ -1,6 +1,6 @@
 from enum import Enum
 import time
-from common import ACCEPT, FAILURE, REJECT, SUCCESS, FileTransferData, READY, CANCEL
+from common import *
 from message import MessageType
 import serversession
 from users import User
