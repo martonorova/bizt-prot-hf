@@ -6,7 +6,7 @@ import click
 import clientsession
 
 from message import MessageType
-from common import init_logging
+from common import SoftException, init_logging
 from crypto_helpers import load_publickey
 
 init_logging()
@@ -41,8 +41,11 @@ class Client:
         self.__receive()
     
     def process_command(self, command: str):
-        self.__session.command(command)
-        self.__receive()
+        try:
+            self.__session.command(command)
+            self.__receive()
+        except SoftException as e:
+            logger.warning(e)
 
     def close(self):
         self.__session.close()

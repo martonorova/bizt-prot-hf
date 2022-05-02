@@ -205,8 +205,7 @@ class ClientSessionSM:
     # <region: Command action>
     def command(self, cmd_str: str):
         if self.__state is not States.Commanding:
-            print('Can not execute commands now')
-            return
+            raise SoftException('Can not execute commands now')
 
         lines = cmd_str.split(' ')
         cmd = lines[0]
@@ -214,12 +213,10 @@ class ClientSessionSM:
         fn = self.__command_chart.get(cmd)
 
         if fn is None:
-            print('Invalid CommandType')
-            return
+            raise SoftException('Not a valid command')
         result = fn(self, lines)
         if not result:
-            print('Invalid command params')
-            return
+            raise SoftException('Can not executem command with given arguments')
 
         request_payload = '\n'.join(result).encode('UTF-8')
         self.__prev_req_hash = cmd, sha256(request_payload)
@@ -268,7 +265,6 @@ class ClientSessionSM:
         if data:
             return str(len(data)), sha256(data)
         else:
-            print('File not found')
-            return None
+            raise SoftException('File not found')
 
 
