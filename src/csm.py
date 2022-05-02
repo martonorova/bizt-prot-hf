@@ -245,15 +245,15 @@ class ClientSessionSM:
     def __cmd__upl(self, params: list[str]):
         if len(params) == 3:
             data = __get_file_data(params[1])
-            self.__state_data = FileTransferData([params[2], *data])
+            self.__state_data = FileTransferData([params[1], *data])
             if data:
-                return ['lst', *data]
+                return ['lst', params[2], *data]
         return None
 
     def __cmd__dnl(self, params: list[str]):
         if len(params) == 3:
             self.__state_data = params[1], params[2]
-            return params
+            return ['dnl', params[2]]
         return None
 
     __command_chart = {
