@@ -18,14 +18,14 @@ Server requests passwd on startup. Other server config from env vars.
 #### Start
 
 ./sift.sh -u \<user> -h \<host> [-p \<port>]
+
 Password from std io
 
 Commands are the 7 commands from the doc.
 
 - Standalone commands (no args): [pwd, lst]
 - Single arg commands: [chd, mkd, del]
-- upl <local_path> <remote_path>
-- dnl <local_path> <remote_path>
+- upl/dnl \<source> \<destinatio>
 - exit
 
 ## TODO & bugs
@@ -33,3 +33,7 @@ Commands are the 7 commands from the doc.
 - load public and private key from arg path
 
 - exception levels
+
+- session read based on header
+
+- logging

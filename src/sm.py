@@ -128,7 +128,8 @@ class SessionSM:
             raise Exception('Invalid MessageType')
         state_data: str = self.__state_data
         payload = payload.decode('UTF-8')
-        if not(payload is READY or payload is CANCEL):
+
+        if not(payload == READY or payload == CANCEL):
             raise Exception('Invalid params')
 
         if payload == READY:

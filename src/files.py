@@ -92,7 +92,7 @@ def cmd_del(user: User, path: str) -> bool:
 def cmd_dnl(user: User, fname: str) -> Tuple[str, str]:
     data = download(user, fname)
     if data:
-        return len(data), sha256(data)
+        return str(len(data)), sha256(data)
     else:
         return None
 

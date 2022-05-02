@@ -247,8 +247,8 @@ class ClientSessionSM:
 
     def __cmd__dnl(self, params: list[str]):
         if len(params) == 3:
-            self.__state_data = params[1], params[2]
-            return ['dnl', params[2]]
+            self.__state_data = params[2], params[1]
+            return ['dnl', params[1]]
         return None
 
     __command_chart = {
