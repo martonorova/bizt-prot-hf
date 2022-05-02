@@ -83,8 +83,8 @@ class ClientSessionSM:
         fn = self.__cph__fn_chart.get(command)
         if fn is None:
             raise Exception('Invalid CommandType')
-        fn(self, results)
-        raise BrakeListeningException()
+        if not fn(self, results):
+            raise BrakeListeningException()
 
     def __cph__pwd(self, results: list[str]):
         if len(results) != 2:
@@ -117,6 +117,7 @@ class ClientSessionSM:
             self.__state = States.Uploading
             print('Started upload')
             self.__proceed_upload()
+            return True
         else:
             print('Request failed')
             self.__state_data = None
@@ -132,6 +133,7 @@ class ClientSessionSM:
             self.__state = States.Downloading
             print('Started download')
             self.__proceed_download()
+            return True
         else:
             print('Request failed')
             self.__state_data = None
@@ -195,6 +197,7 @@ class ClientSessionSM:
             save_file(state_data.file_name, state_data.buffer)
             self.__state_data = None
             self.__state = States.Commanding
+            print('Download successful')
             raise BrakeListeningException()
 
 

@@ -50,8 +50,7 @@ class Client:
                 logger.debug('End of processing commnad responses')
         except SoftException as e:
             logger.warning(e)
-        
-        
+
 
     def close(self):
         self.__session.close()

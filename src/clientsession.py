@@ -48,7 +48,7 @@ class ClientSession(session.Session):
 
     def retrieve_decrypt_transfer_key(self, message: Message) -> bytes:
         if message.typ == MessageType.LOGIN_RES:
-            logger.info("received LOGIN_RES message")
+            logger.debug("received LOGIN_RES message")
             transfer_key = self.tk
         else:
             transfer_key = self.key
