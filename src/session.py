@@ -7,10 +7,10 @@ from Crypto import Random
 import socket
 import logging
 from users import User
+from common import init_logging
 
-# TODO set this from env var
-logging.basicConfig(level=logging.DEBUG)
-
+init_logging()
+logger = logging.getLogger(__name__)
 class Session(object):
     def __init__(self, _socket: socket.socket):
         self.user : User = None
@@ -22,7 +22,7 @@ class Session(object):
 
     def send(self, message: Message):
         self.socket.sendall(message.serialize())
-        logging.debug(f"Sent Message: {message}")
+        logger.debug(f"Sent Message: {message}")
 
     def receive(self) -> Tuple[MessageType, bytes]:
         data = self.socket.recv(2048) # messages do not exceed 1kB + MTP overhead
@@ -30,15 +30,15 @@ class Session(object):
             raise Exception("Read empty data from socket")
         # if data: # on connection, data is empty --> ignore it
         message = Message.deserialize(data)
-        logging.debug(f"Received Message: {message}")
+        logger.debug(f"Received Message: {message}")
         message_type, payload = self.decrypt(message)
-        logging.debug(f"Received payload: {payload.decode('UTF-8')}")
+        logger.debug(f"Received payload: {payload.decode('UTF-8')}")
 
         return message_type, payload
 
     def process(self, message_type: MessageType, payload: bytes):
         if self.sm is None:
-            logging.error("Session state machine is unitialized")
+            logger.error("Session state machine is unitialized")
             self.close()
         # send message and payload to business logic
         try:
@@ -47,7 +47,7 @@ class Session(object):
             self.close()
             # TODO close client program on exception
             # TODO close server session gracefuly 
-            logging.error(
+            logger.error(
                 f'Error occured'
                 f'{e!r}'
             )
@@ -94,22 +94,22 @@ class Session(object):
         return Message(header, encrypted_payload, authtag, etk)
     
     def validate_sqn(self, sqn_to_validate: int):
-        logging.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
+        logger.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
         if (sqn_to_validate <= self.sqn):
             raise ValueError(f"Message sequence number is too old: {sqn_to_validate}!")
-        logging.debug(f"Sequence number verification is successful.")
+        logger.debug(f"Sequence number verification is successful.")
 
     def decrypt_payload(self, key: bytes, message: Message) -> bytes:
-        logging.debug("Attempt decryption and authentication tag verification...")
+        logger.debug("Attempt decryption and authentication tag verification...")
         nonce = message.header.nonce
         AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=MAC_LEN)
         AE.update(message.header.serialize())
         try:
             payload = AE.decrypt_and_verify(message.epd, message.mac)
         except Exception as e:
-            logging.error("Operation failed!")
+            logger.error("Operation failed!")
             raise e
-        logging.debug("Operation was successful: message is intact, content is decrypted")
+        logger.debug("Operation was successful: message is intact, content is decrypted")
 
         return payload
 
@@ -133,10 +133,10 @@ class Session(object):
     def close(self):
         try:
             if self.socket is not None:
-                logging.info(f"Closing connection")
+                logger.info(f"Closing connection")
                 self.socket.close()
         except OSError as e:
-            logging.error(f"Error: Session.socket.close() exception: {e!r}")
+            logger.error(f"Error: Session.socket.close() exception: {e!r}")
         finally:
             # Delete reference to socket object for garbage collection
             self.socket = None

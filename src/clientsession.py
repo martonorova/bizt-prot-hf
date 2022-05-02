@@ -2,41 +2,35 @@ from typing import Tuple
 import session
 import csm
 from message import MessageType, Message, ETK_LEN
-from common import load_publickey
+from common import init_logging
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto import Random
 
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+init_logging()
+logger = logging.getLogger(__name__)
 
 class ClientSession(session.Session):
-    def __init__(self, socket):
+    def __init__(self, socket, pubkey):
         super().__init__(socket)
         self.sm = csm.ClientSessionSM(self)
+        self.pubkey = pubkey
 
     def login(self, user, password):
         self.sm.login(user, password)
-
-        # payload = ' '.join([user, password]).encode()
-        # message = self.encrypt(MessageType.LOGIN_REQ, payload)
-        # self.send(message)
 
     def command(self, command: str):
         self.sm.command(command)
 
     def __encrypt_temporary_key(self, temp_key: bytes) -> bytes:
-        # load the public key from the public key file and
-        # create an RSA cipher object
-        pubkeyfile = 'pubkey.pem'
-        pubkey = load_publickey(pubkeyfile)
-        RSAcipher = PKCS1_OAEP.new(pubkey)
+        RSAcipher = PKCS1_OAEP.new(self.pubkey)
 
         # encrypt temporary key
         etk = RSAcipher.encrypt(temp_key)
         if len(etk) != ETK_LEN:
-            logging.error(f"etk length is {len(etk)} insead of {ETK_LEN}")
+            logger.error(f"etk length is {len(etk)} insead of {ETK_LEN}")
             self.close()
 
         return etk
@@ -54,7 +48,7 @@ class ClientSession(session.Session):
 
     def retrieve_decrypt_transfer_key(self, message: Message) -> bytes:
         if message.typ == MessageType.LOGIN_RES:
-            logging.info("received LOGIN_RES message")
+            logger.info("received LOGIN_RES message")
             transfer_key = self.tk
         else:
             transfer_key = self.key
