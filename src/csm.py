@@ -3,7 +3,6 @@ import time
 from typing import Tuple
 import clientsession
 from message import MessageType
-from session import Session
 from files import get_file, save_file
 from crypto_helpers import *
 from math import ceil
@@ -23,8 +22,8 @@ __ts_diff_threshold_ps = 1000*1000*1000*0.5 * ts_diff_threshold
 
 
 class ClientSessionSM:
-    def __init__(self, session: clientsession.ClientSession) -> None:
-        self.__session = session
+    def __init__(self, session) -> None:
+        self.__session: clientsession.ClientSession = session
         self.__state = States.Unauthorized
         self.__state_chart = {
             States.Unauthorized: self.__login_response_handler,

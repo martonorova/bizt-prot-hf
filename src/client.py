@@ -4,7 +4,6 @@ import logging
 import click
 
 import clientsession
-import time
 
 from message import MessageType
 
