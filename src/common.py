@@ -28,6 +28,9 @@ READY = 'Ready'
 CANCEL = 'Cancel'
 
 
+class BrakeListeningException(Exception):
+    pass
+
 class SoftException(Exception):
     pass
 

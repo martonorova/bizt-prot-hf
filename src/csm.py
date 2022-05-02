@@ -67,6 +67,7 @@ class ClientSessionSM:
         self.__state_data = None
         self.__state = States.Commanding
         self.__session.tk = None
+        raise BrakeListeningException()
     # </region: Login Protocol response handler>
 
     # <region: Command Protocol response handlers>
@@ -84,6 +85,7 @@ class ClientSessionSM:
         if fn is None:
             raise Exception('Invalid CommandType')
         fn(self, results)
+        raise BrakeListeningException()
 
     def __cph__pwd(self, results: list[str]):
         if len(results) != 2:
@@ -158,6 +160,7 @@ class ClientSessionSM:
         self.__state = States.Commanding
         self.__state_data = None
         print('Upload successful')
+        raise BrakeListeningException()
 
 
     def __proceed_upload(self):
@@ -193,6 +196,7 @@ class ClientSessionSM:
             save_file(state_data.file_name, state_data.buffer)
             self.__state_data = None
             self.__state = States.Commanding
+            raise BrakeListeningException()
 
 
     def __proceed_download(self):
@@ -221,7 +225,7 @@ class ClientSessionSM:
         request_payload = '\n'.join(result).encode('UTF-8')
         self.__prev_req_hash = cmd, sha256(request_payload)
         message = self.__session.encrypt(MessageType.COMMAND_REQ, request_payload)
-        self.__session.send(message)
+        self.__session.send(message)        
 
 
     def __cmd__standalone(self, params: list[str]):
