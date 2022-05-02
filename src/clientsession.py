@@ -23,6 +23,11 @@ class ClientSession(session.Session):
         message = self.encrypt(MessageType.LOGIN_REQ, payload)
         self.send(message)
 
+    def command(self, command: str):
+        logging.debug(f'[ClientSession] command: {command}')
+        # TODO with try-catch
+        # self.sm.command(command)
+
     def __encrypt_temporary_key(self, temp_key: bytes) -> bytes:
         # load the public key from the public key file and 
         # create an RSA cipher object

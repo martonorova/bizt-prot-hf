@@ -28,7 +28,7 @@ class Session(object):
         logging.debug(f"Sent Message: {message}")
 
     def receive(self) -> (MessageType, bytes):
-        data = self.socket.recv(2048) # TODO read based on header length field
+        data = self.socket.recv(2048) # messages do not exceed 1kB + MTP overhead
         if len(data) == 0:
             raise Exception("Read empty data from socket")
         # if data: # on connection, data is empty --> ignore it
@@ -51,12 +51,6 @@ class Session(object):
                 f'Error occured'
                 f'{e!r}'
             )
-
-    # TODO do we need adaptive reading from socket based on header len value?
-    def process_header(self):
-        if len(self._recv_buffer) >= HDR_LEN:
-            # we can parse the length of the message
-            self._recv_len = int.from_bytes(self._recv_buffer[4:6], byteorder='big')
 
     def encrypt_payload(self, key, header, payload) -> (bytes, bytes):
         nonce = header.nonce
@@ -137,12 +131,12 @@ class Session(object):
         return (message.header.typ, payload)
 
     def close(self):
-        logging.info(f"Closing connection")
-
         try:
-            self.socket.close()
+            if self.socket is not None:
+                logging.info(f"Closing connection")
+                self.socket.close()
         except OSError as e:
-            logging.error(f"Error: socket.close() exception: {e!r}")
+            logging.error(f"Error: Session.socket.close() exception: {e!r}")
         finally:
             # Delete reference to socket object for garbage collection
             self.socket = None

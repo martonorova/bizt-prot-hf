@@ -39,7 +39,7 @@ def load_publickey(pubkeyfile):
         sys.exit(1)
 
 def load_keypair(privkeyfile):
-    passphrase = getpass.getpass('Enter a passphrase to decode the saved private key: ')
+    passphrase = getpass.getpass('Enter a passphrase to load and decode server private key: ')
     with open(privkeyfile, 'rb') as f:
         keypairstr = f.read()
     try:
