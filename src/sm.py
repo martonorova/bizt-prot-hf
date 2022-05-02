@@ -60,8 +60,7 @@ class SessionSM:
         if not users.authenticate(username, password):
             raise Exception('Invalid user:passwd pair')
 
-        self.__session.user = User(username)
-        self.__session.tk = None
+        self.__session.user = User(username)        
 
         srv_rand = Random.get_random_bytes(16)
         req_hash = sha256b(payload)
@@ -72,6 +71,7 @@ class SessionSM:
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
         message = self.__session.encrypt(MessageType.LOGIN_RES, response_payload)
         self.__session.send(message)
+        self.__session.tk = None
     # </region: Login Protocol request handler>
 
     # <region: High level request handlers>
@@ -86,7 +86,7 @@ class SessionSM:
         if fn is None:
             raise Exception('Invalid CommandType')
 
-        fn_results = fn(params)
+        fn_results = fn(self, params)
         cmd_hash = sha256(payload)
         response_payload_lines = [cmd, cmd_hash] + fn_results
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
@@ -102,12 +102,18 @@ class SessionSM:
 
         if type is MessageType.UPLOAD_REQ_0:
             if len(payload) != 1024:
+                self.__state_data = None
+                self.__state = States.AwaitingCommands
                 raise Exception('Invalid fragment size')
 
         if type is MessageType.UPLOAD_REQ_1:
             if len(payload) > 1024:
+                self.__state_data = None
+                self.__state = States.AwaitingCommands
                 raise Exception('Invalid fragment size')
             if not state_data.validate():
+                self.__state_data = None
+                self.__state = States.AwaitingCommands
                 raise Exception('Invalid uploaded file')
             upload(self.__session.user, state_data.file_name, state_data.buffer)
             self.__state_data = None
@@ -147,7 +153,7 @@ class SessionSM:
     def __cph__lst(self, params: list[str]):
         if len(params) != 0:
             raise Exception('Invalid params')
-        return [SUCCESS, cmd_lst(self.__session.user)]
+        return [SUCCESS, base64_encode(cmd_lst(self.__session.user)).hex()]
 
     def __cph__chd(self, params: list[str]):
         if len(params) != 1:
@@ -174,7 +180,7 @@ class SessionSM:
             return [FAILURE]
 
     def __cph__upl(self, params: list[str]):
-        if validate_path(params[0]):
+        if validate_path(self.__session.user, params[0]):
             self.__state = States.Uploading
             self.__state_data = FileTransferData(params)
             return [ACCEPT]
@@ -183,7 +189,7 @@ class SessionSM:
 
     def __cph__dnl(self, params: list[str]):
         data = cmd_dnl(self.__session.user, params[0])
-        if data and validate_path(params[0]):
+        if data and validate_path(self.__session.user, params[0]):
             self.__state = States.Downloading
             self.__state_data = params[0]
             return [ACCEPT, *data]

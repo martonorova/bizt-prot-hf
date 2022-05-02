@@ -99,7 +99,7 @@ def cmd_dnl(user: User, fname: str) -> Tuple[str, str]:
 
 def validate_path(user: User, fname: str) -> bool:
     try:
-        __parse_path(fname)
+        __parse_path(user, fname)
     except:
         return False
     return True

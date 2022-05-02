@@ -9,7 +9,7 @@ class FileTransferData():
         self.buffer: bytes = b''
 
     def validate(self) -> bool:
-        return len(self.buffer) == self.file_size and sha256(self.buffer) == self.file_hash
+        return str(len(self.buffer)) == self.file_size and sha256(self.buffer) == self.file_hash
 
 
 SUCCESS = 'success'

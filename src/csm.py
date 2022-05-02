@@ -56,19 +56,17 @@ class ClientSessionSM:
 
         lines = payload.decode("utf-8").split('\n')
         request_hash = lines[0]
-        server_random = lines[1]
+        server_random = bytes.fromhex(lines[1])
         if len(server_random) != 16:
             raise Exception('Invalid random')
         if request_hash != self.__prev_req_hash:
             raise Exception('Invalid hash')
-
-        self.__session.tk = None
-        self.__session.key = symmetric_key(server_random, self.__state_data, request_hash)
+        
+        self.__session.key = symmetric_key(server_random, self.__state_data, bytes.fromhex(request_hash))
         self.__prev_req_hash = None
         self.__state_data = None
         self.__state = States.Commanding
-
-
+        self.__session.tk = None
     # </region: Login Protocol response handler>
 
     # <region: Command Protocol response handlers>
@@ -85,7 +83,7 @@ class ClientSessionSM:
         fn = self.__cph__fn_chart.get(command)
         if fn is None:
             raise Exception('Invalid CommandType')
-        fn(results)
+        fn(self, results)
 
     def __cph__pwd(self, results: list[str]):
         if len(results) != 2:
@@ -99,7 +97,7 @@ class ClientSessionSM:
         if len(results) != 2:
             raise Exception('Invalid response payload')
         if results[0] == SUCCESS:
-            print(f'List of files: {base64_decode(results[1])}')
+            print(f'List of files: {base64_decode(bytes.fromhex(results[1]))}')
         else:
             print('Request failed')
 
@@ -218,7 +216,7 @@ class ClientSessionSM:
         if fn is None:
             print('Invalid CommandType')
             return
-        result = fn(lines)
+        result = fn(self, lines)
         if not result:
             print('Invalid command params')
             return
@@ -241,10 +239,10 @@ class ClientSessionSM:
 
     def __cmd__upl(self, params: list[str]):
         if len(params) == 3:
-            data = __get_file_data(params[1])
+            data = self.__get_file_data(params[1])
             self.__state_data = FileTransferData([params[1], *data])
             if data:
-                return ['lst', params[2], *data]
+                return ['upl', params[2], *data]
         return None
 
     def __cmd__dnl(self, params: list[str]):
@@ -264,13 +262,13 @@ class ClientSessionSM:
     }
     # </region: Command action>
 
-# Helper function for upload process
-def __get_file_data(fname: str) -> Tuple[str, str]:
-    data = get_file(fname)
-    if data:
-        return len(data), sha256(data)
-    else:
-        print('File not found')
-        return None
+    # Helper function for upload process
+    def __get_file_data(self, fname: str) -> Tuple[str, str]:
+        data = get_file(fname)
+        if data:
+            return str(len(data)), sha256(data)
+        else:
+            print('File not found')
+            return None
 
 
