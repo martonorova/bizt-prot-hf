@@ -37,3 +37,5 @@ Commands are the 7 commands from the doc.
 - session read based on header
 
 - logging
+
+- egyszerre ugyanaz az a user csak egyszer
