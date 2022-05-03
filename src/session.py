@@ -29,7 +29,7 @@ class Session(object):
         # read in the header
         buffer += self.socket.recv(HDR_LEN) # messages do not exceed 1kB + MTP overhead
         if len(buffer) == 0: # empty buffer indicates connection closing from other side
-            raise Exception("Read empty data from socket")
+            raise Exception("Connection closed from other party (read empty data from socket)")
 
         header = Header.deserialize(buffer)
         # read in the rest of the message
