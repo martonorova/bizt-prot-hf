@@ -30,7 +30,3 @@ Commands are the 7 commands from the doc.
 ## TODO & bugs
 
 - READ SPECIFICATION!!!
-
-- egyszerre ugyanaz az a user csak egyszer (won't fix)
-
-- bontani a kapcsolatot, ha nem a session (server/client) állapotnak megfelelő üzenet jön? ez le van már kezelve?
