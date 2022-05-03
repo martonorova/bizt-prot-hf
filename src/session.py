@@ -3,6 +3,7 @@ from message import Message, Header, MessageType, HDR_LEN, MAC_LEN, ETK_LEN
 
 from Crypto.Cipher import AES
 from Crypto import Random
+from options import show_messages
 
 import socket
 import logging
@@ -22,23 +23,27 @@ class Session(object):
 
     def send(self, message: Message):
         self.socket.sendall(message.serialize())
-        logger.debug(f"Sent Message: {message}")
+        if show_messages:
+            logger.debug(f"Sent Message: {message}")
 
     def receive(self) -> Tuple[MessageType, bytes]:
         buffer: bytes = b''
         # read in the header
         buffer += self.socket.recv(HDR_LEN) # messages do not exceed 1kB + MTP overhead
         if len(buffer) == 0: # empty buffer indicates connection closing from other side
-            raise Exception("Connection closed from other party (read empty data from socket)")
+            err_msg = "Connection closed from other party (read empty data from socket)"
+            logger.debug(err_msg)
+            raise Exception(err_msg)
 
         header = Header.deserialize(buffer)
         # read in the rest of the message
         buffer += self.socket.recv(header.length - HDR_LEN)
 
         message = Message.deserialize(buffer)
-        logger.debug(f"Received Message: {message}")
+        if show_messages:
+            logger.debug(f"Received Message: {message}")
         message_type, payload = self.decrypt(message)
-        logger.debug(f"Received payload:\n{payload.decode('UTF-8')}")
+        logger.debug(f"Received payload:\n{payload.decode('UTF-8')}\n")
 
         return message_type, payload
 
@@ -50,6 +55,7 @@ class Session(object):
         try:
             self.sm.receive_message(message_type, payload)
         except BrakeListeningException:
+            logger.debug("Propagate BrakeListeningException")
             raise
         except Exception as e:
             self.close()

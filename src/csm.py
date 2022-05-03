@@ -10,6 +10,9 @@ from Crypto import Random
 import options
 from common import *
 
+init_logging()
+logger = logging.getLogger(__name__)
+
 class States(Enum):
     Unauthorized = 0
     Commanding = 1
@@ -52,15 +55,21 @@ class ClientSessionSM:
     # <region: Login Protocol response handler>
     def __login_response_handler(self, type: MessageType, payload: bytes):
         if type is not MessageType.LOGIN_RES:
-            raise Exception('Invalid MessageType')
+            err_msg = f'Invalid MessageType: {type.name}'
+            logger.debug(err_msg)
+            raise Exception(err_msg)
 
         lines = payload.decode("utf-8").split('\n')
         request_hash = lines[0]
         server_random = bytes.fromhex(lines[1])
         if len(server_random) != 16:
-            raise Exception('Invalid random')
+            err_msg = 'Invalid random'
+            logger.debug(err_msg)
+            raise Exception(err_msg)
         if request_hash != self.__prev_req_hash:
-            raise Exception('Invalid hash')
+            err_msg = 'Invalid hash'
+            logger.debug(err_msg)
+            raise Exception(err_msg)
 
         self.__session.key = symmetric_key(server_random, self.__state_data, bytes.fromhex(request_hash))
         self.__prev_req_hash = None
@@ -72,24 +81,32 @@ class ClientSessionSM:
     # <region: Command Protocol response handlers>
     def __command_response_handler(self, type: MessageType, payload: bytes):
         if type is not MessageType.COMMAND_RES:
-            raise Exception('Invalid MessageType')
+            err_msg = f'Invalid MessageType: {type.name}'
+            logger.debug(err_msg)
+            raise Exception(err_msg)
         lines = payload.decode('UTF-8').split('\n')
         command = lines[0]
         request_hash = lines[1]
         results = lines[2:]
         if (command, request_hash) != self.__prev_req_hash:
-            raise Exception('Invalid Hash from server response')
+            err_msg = 'Invalid Hash from server response'
+            logger.debug(err_msg)
+            raise Exception(err_msg)
 
         fn = self.__cph__fn_chart.get(command)
         if fn is None:
-            raise Exception('Invalid CommandType')
+            err_msg = 'Invalid CommandType'
+            logger.debug(err_msg)
+            raise Exception(err_msg)
         if not fn(self, results):
             raise BrakeListeningException()
 
     def __cph__pwd(self, results: list[str]):
         if results[0] == SUCCESS:
             if len(results) != 2:
-                raise SoftException('Invalid response payload')
+                err_msg = 'Invalid response payload'
+                logger.debug(err_msg)
+                raise SoftException(err_msg)
             print(f'PWD: {results[1]}')
         else:
             print('Request failed')
@@ -97,7 +114,9 @@ class ClientSessionSM:
     def __cph__lst(self, results: list[str]):
         if results[0] == SUCCESS:
             if len(results) != 2:
-                raise SoftException('Invalid response payload')
+                err_msg = 'Invalid response payload'
+                logger.debug(err_msg)
+                raise SoftException(err_msg)
             print(f'List of files: {base64_decode(bytes.fromhex(results[1]))}')
         else:
             print('Request failed')
@@ -105,7 +124,9 @@ class ClientSessionSM:
     def __cph__chd_mkd_del(self, results: list[str]):
         if results[0] == SUCCESS:
             if len(results) != 1:
-                raise SoftException('Invalid response payload')
+                err_msg = 'Invalid response payload'
+                logger.debug(err_msg)
+                raise SoftException(err_msg)
             print('Success')
         else:
             print('Request failed')
@@ -113,7 +134,9 @@ class ClientSessionSM:
     def __cph__upl(self, results: list[str]):
         if results[0] == ACCEPT:
             if len(results) != 1:
-                raise SoftException('Invalid response payload')
+                err_msg = 'Invalid response payload'
+                logger.debug(err_msg)
+                raise SoftException(err_msg)
             self.__state = States.Uploading
             print('Started upload')
             self.__proceed_upload()
@@ -125,7 +148,9 @@ class ClientSessionSM:
     def __cph__dnl(self, results: list[str]):
         if results[0] == ACCEPT:
             if len(results) != 3:
-                raise SoftException('Invalid response payload')
+                err_msg = 'Invalid response payload'
+                logger.debug(err_msg)
+                raise SoftException(err_msg)
             local, remote = self.__state_data
             length = results[1]
             hash = results[2]
@@ -152,12 +177,16 @@ class ClientSessionSM:
     # <region: Upload Protocol>
     def __upload_protocol_handler(self, type: MessageType, payload: bytes):
         if not(type is MessageType.UPLOAD_RES):
-            raise Exception('Invalid MessageType')
+            err_msg = f'Invalid MessageType: {type.name}'
+            logger.debug(err_msg)
+            raise Exception(err_msg)
 
         lines = payload.decode('UTF-8').split('\n')
         state_data: FileTransferData = self.__state_data
         if not(lines[0] == state_data.file_hash and lines[1] == state_data.file_size):
-            raise('Invalid hash after upload')
+            err_msg = 'Invalid hash after upload'
+            logger.debug(err_msg)
+            raise Exception(err_msg)
         self.__state = States.Commanding
         self.__state_data = None
         print('Upload successful')
@@ -178,20 +207,26 @@ class ClientSessionSM:
     # <region: Download Protocol>
     def __download_protocol_handler(self, type: MessageType, payload: bytes):
         if not(type is MessageType.DOWNLOAD_RES_0 or type is MessageType.DOWNLOAD_RES_1):
-            raise Exception('Invalid MessageType')
+            err_msg = f'Invalid MessageType: {type.name}'
+            logger.debug(err_msg)
+            raise Exception(err_msg)
         state_data: FileTransferData = self.__state_data
 
         state_data.buffer += payload
 
         if type is MessageType.DOWNLOAD_RES_0:
             if len(payload) != 1024:
-                raise Exception('Invalid fragment size')
+                err_msg = 'Invalid fragment size'
+                logger.debug(err_msg)
+                raise Exception(err_msg)
 
         if type is MessageType.DOWNLOAD_RES_1:
             if len(payload) > 1024:
-                raise Exception('Invalid fragment size')
+                err_msg = 'Invalid fragment size'
+                logger.debug(err_msg)
+                raise Exception(err_msg)
             if not state_data.validate():
-                print('Hash not matching, file transfer terminated')
+                logger.debug('Hash not matching, file transfer terminated')
                 raise Exception('Invalid downloaded file')
 
             save_file(state_data.file_name, state_data.buffer)
@@ -211,7 +246,9 @@ class ClientSessionSM:
     # <region: Command action>
     def command(self, cmd_str: str):
         if self.__state is not States.Commanding:
-            raise SoftException('Can not execute commands now')
+            err_msg = 'Can not execute commands now'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
 
         lines = cmd_str.split(' ')
         cmd = lines[0]
@@ -219,10 +256,14 @@ class ClientSessionSM:
         fn = self.__command_chart.get(cmd)
 
         if fn is None:
-            raise SoftException('Not a valid command')
+            err_msg = 'Not a valid command'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
         result = fn(self, lines)
         if not result:
-            raise SoftException('Can not execute command with given arguments')
+            err_msg = 'Can not execute command with given arguments'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
 
         request_payload = '\n'.join(result).encode('UTF-8')
         self.__prev_req_hash = cmd, sha256(request_payload)
@@ -271,6 +312,8 @@ class ClientSessionSM:
         if data:
             return str(len(data)), sha256(data)
         else:
-            raise SoftException('File not found')
+            err_msg = 'File not found'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
 
 

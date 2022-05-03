@@ -47,7 +47,7 @@ class Client:
                 while True:
                     self.__receive()
             except BrakeListeningException:
-                logger.debug('End of processing commnad responses')
+                logger.debug('End of processing command responses')
         except SoftException as e:
             logger.warning(e)
 

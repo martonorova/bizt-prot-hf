@@ -3,10 +3,14 @@ import os
 from os.path import exists
 import shutil
 from typing import Tuple
-from common import SoftException
+from common import SoftException, init_logging
 from users import User
 from crypto_helpers import *
 import options
+import logging
+
+init_logging()
+logger = logging.getLogger(__name__)
 
 #import files as f
 #u1 = f.User('Alice')
@@ -33,7 +37,9 @@ def __parse_path(user: User, path: str) -> list[str]:
             continue
         if s == '..':
             if len(ret) == 0:
-                raise SoftException()
+                err_msg = 'Root folder exit attempt'
+                logger.debug(err_msg)
+                raise SoftException(err_msg)
             del ret[-1]
         else:
             ret.append(s)
