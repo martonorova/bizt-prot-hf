@@ -1,3 +1,4 @@
+from genericpath import isdir
 import os
 from os.path import exists
 import shutil
@@ -63,7 +64,7 @@ def cmd_chd(user: User, path: str) -> bool:
     __create_home(user)
     parsed_path = __parse_path(user, path)
     os_path = __os_path_prefix(user) + __join_path(parsed_path)
-    if exists(os_path):
+    if isdir(os_path):
         user.pwd = parsed_path
         return True
     return False
