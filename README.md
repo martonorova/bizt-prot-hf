@@ -31,9 +31,7 @@ Commands are the 7 commands from the doc.
 
 - READ SPECIFICATION!!!
 
-- session read based on header
-
-- egyszerre ugyanaz az a user csak egyszer
+- egyszerre ugyanaz az a user csak egyszer (won't fix)
 
 - ha a root könyvtárban vagyok bejelentkezve, "chd .." parancsot kiadva,  server oldalon: [session.py:59] Error occuredIndexError('list assignment index out of range')
 
