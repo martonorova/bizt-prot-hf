@@ -34,3 +34,17 @@ Commands are the 7 commands from the doc.
 - session read based on header
 
 - egyszerre ugyanaz az a user csak egyszer
+
+- ha a root könyvtárban vagyok bejelentkezve, "chd .." parancsot kiadva,  server oldalon: [session.py:59] Error occuredIndexError('list assignment index out of range')
+
+- rossz user jelszó esetén csúnya log jelenik meg (hiba? server csak bontja a kapcsolatot), kell-e / lehet-e szebb?
+
+- server oldali exception elején mindig kiíródik a rootcause exception, utána pedig egy NoneType a socketre --> korábban kellene elkapni az exception-t, hogy csak a root cause jelenjen meg (SoftException / HardException?)
+'''
+2022-05-03:13:29:45,230 ERROR    [session.py:59] Error occuredException('Invalid user:passwd pair')
+2022-05-03:13:29:45,231 ERROR    [server.py:33] 'NoneType' object has no attribute 'recv' from 127.0.0.1:34012
+2022-05-03:13:29:45,231 INFO     [server.py:35] Closed client connection from 127.0.0.1:34012
+'''
+
+- hiányzó exception az RSA titkositas/dekodolas során ha hiba van
+- bontani a kapcsolatot, ha nem a session (server/client) állapotnak megfelelő üzenet jön? ez le van már kezelve?
