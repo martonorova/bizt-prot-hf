@@ -64,7 +64,6 @@ class Client:
         except SoftException as e:
             logger.warning(e)
 
-
     def close(self):
         self.__session.close()
 
@@ -72,12 +71,6 @@ class Client:
         typ, payload = self.__session.receive()
         self.__session.process(typ, payload)
 
-# res = client.make_req_sync(b'hello server 1')
-# print(res)
-
-# time.sleep(5)
-# res = client.make_req_sync(b'hello server 2')
-# print(res)
 
 @click.command()
 @click.option('--user', '-u', type=click.STRING, help='Username to connect to a SIFT server', required=True, default='alice', show_default=True)
