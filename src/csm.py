@@ -222,7 +222,7 @@ class ClientSessionSM:
             raise SoftException('Not a valid command')
         result = fn(self, lines)
         if not result:
-            raise SoftException('Can not executem command with given arguments')
+            raise SoftException('Can not execute command with given arguments')
 
         request_payload = '\n'.join(result).encode('UTF-8')
         self.__prev_req_hash = cmd, sha256(request_payload)
