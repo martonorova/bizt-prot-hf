@@ -33,9 +33,8 @@ Commands are the 7 commands from the doc.
 
 - egyszerre ugyanaz az a user csak egyszer (won't fix)
 
-- ha a root könyvtárban vagyok bejelentkezve, "chd .." parancsot kiadva,  server oldalon: [session.py:59] Error occuredIndexError('list assignment index out of range')
-
 - rossz user jelszó esetén csúnya log jelenik meg (hiba? server csak bontja a kapcsolatot), kell-e / lehet-e szebb?
+  - specifikció: "If the verification of timestamp or the verification of the username and password fails, then the server must not respond to the client, but it must close the connection"
 
 - server oldali exception elején mindig kiíródik a rootcause exception, utána pedig egy NoneType a socketre --> korábban kellene elkapni az exception-t, hogy csak a root cause jelenjen meg (SoftException / HardException?)
 '''
