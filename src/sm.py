@@ -82,11 +82,16 @@ class SessionSM:
         lines = payload.decode('UTF-8').split('\n')
         cmd = lines[0]
         params = lines[1:]
+
         fn = self.__cph__fn_chart.get(cmd)
         if fn is None:
             raise Exception('Invalid CommandType')
 
-        fn_results = fn(self, params)
+        try:
+            fn_results = fn(self, params)
+        except:
+            fn_results = [FAILURE]
+
         cmd_hash = sha256(payload)
         response_payload_lines = [cmd, cmd_hash] + fn_results
         response_payload = '\n'.join(response_payload_lines).encode('UTF-8')
@@ -148,17 +153,17 @@ class SessionSM:
     # <region: Command Protocol request handlers per command type>
     def __cph__pwd(self, params: list[str]):
         if len(params) != 0:
-            raise Exception('Invalid params')
+            raise SoftException('Invalid params')
         return [SUCCESS, cmd_pwd(self.__session.user)]
 
     def __cph__lst(self, params: list[str]):
         if len(params) != 0:
-            raise Exception('Invalid params')
+            raise SoftException('Invalid params')
         return [SUCCESS, base64_encode(cmd_lst(self.__session.user)).hex()]
 
     def __cph__chd(self, params: list[str]):
         if len(params) != 1:
-            raise Exception('Invalid params')
+            raise SoftException('Invalid params')
         if cmd_chd(self.__session.user, params[0]):
             return [SUCCESS]
         else:
@@ -166,7 +171,7 @@ class SessionSM:
 
     def __cph__mkd(self, params: list[str]):
         if len(params) != 1:
-            raise Exception('Invalid params')
+            raise SoftException('Invalid params')
         if cmd_mkd(self.__session.user, params[0]):
             return [SUCCESS]
         else:
@@ -174,7 +179,7 @@ class SessionSM:
 
     def __cph__del(self, params: list[str]):
         if len(params) != 1:
-            raise Exception('Invalid params')
+            raise SoftException('Invalid params')
         if cmd_del(self.__session.user, params[0]):
             return [SUCCESS]
         else:

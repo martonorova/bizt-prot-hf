@@ -2,6 +2,7 @@ import os
 from os.path import exists
 import shutil
 from typing import Tuple
+from common import SoftException
 from users import User
 from crypto_helpers import *
 import options
@@ -30,6 +31,8 @@ def __parse_path(user: User, path: str) -> list[str]:
         if s == '':
             continue
         if s == '..':
+            if len(ret) == 0:
+                raise SoftException()
             del ret[-1]
         else:
             ret.append(s)

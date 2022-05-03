@@ -61,7 +61,7 @@ class ClientSessionSM:
             raise Exception('Invalid random')
         if request_hash != self.__prev_req_hash:
             raise Exception('Invalid hash')
-        
+
         self.__session.key = symmetric_key(server_random, self.__state_data, bytes.fromhex(request_hash))
         self.__prev_req_hash = None
         self.__state_data = None
@@ -87,33 +87,33 @@ class ClientSessionSM:
             raise BrakeListeningException()
 
     def __cph__pwd(self, results: list[str]):
-        if len(results) != 2:
-            raise Exception('Invalid response payload')
         if results[0] == SUCCESS:
+            if len(results) != 2:
+                raise SoftException('Invalid response payload')
             print(f'PWD: {results[1]}')
         else:
             print('Request failed')
 
     def __cph__lst(self, results: list[str]):
-        if len(results) != 2:
-            raise Exception('Invalid response payload')
         if results[0] == SUCCESS:
+            if len(results) != 2:
+                raise SoftException('Invalid response payload')
             print(f'List of files: {base64_decode(bytes.fromhex(results[1]))}')
         else:
             print('Request failed')
 
     def __cph__chd_mkd_del(self, results: list[str]):
-        if len(results) != 1:
-            raise Exception('Invalid response payload')
         if results[0] == SUCCESS:
+            if len(results) != 1:
+                raise SoftException('Invalid response payload')
             print('Success')
         else:
             print('Request failed')
 
     def __cph__upl(self, results: list[str]):
-        if len(results) != 1:
-            raise Exception('Invalid response payload')
         if results[0] == ACCEPT:
+            if len(results) != 1:
+                raise SoftException('Invalid response payload')
             self.__state = States.Uploading
             print('Started upload')
             self.__proceed_upload()
@@ -123,9 +123,9 @@ class ClientSessionSM:
             self.__state_data = None
 
     def __cph__dnl(self, results: list[str]):
-        if len(results) != 3:
-            raise Exception('Invalid response payload')
         if results[0] == ACCEPT:
+            if len(results) != 3:
+                raise SoftException('Invalid response payload')
             local, remote = self.__state_data
             length = results[1]
             hash = results[2]
@@ -227,7 +227,7 @@ class ClientSessionSM:
         request_payload = '\n'.join(result).encode('UTF-8')
         self.__prev_req_hash = cmd, sha256(request_payload)
         message = self.__session.encrypt(MessageType.COMMAND_REQ, request_payload)
-        self.__session.send(message)        
+        self.__session.send(message)
 
 
     def __cmd__standalone(self, params: list[str]):
