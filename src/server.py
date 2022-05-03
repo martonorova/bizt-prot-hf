@@ -6,7 +6,7 @@ import click
 
 import serversession
 from crypto_helpers import load_keypair
-from common import init_logging
+from common import init_logging, BrakeListeningException, HardException
 
 from message import Message, MessageType
 
@@ -29,10 +29,16 @@ class TCPHandler(socketserver.BaseRequestHandler):
             try:
                 message_type, payload = self.__session.receive()
                 self.__session.process(message_type, payload)
-            except Exception as e:
-                logger.error(f"{e} from {client_address}:{client_port}")
+            except BrakeListeningException as ble:
                 break
-        logger.info(f"Closed client connection from {client_address}:{client_port}")
+            except HardException as he:
+                logger.error(f'Error occured: {he!r}')
+                self.__session.close()
+                break
+            except Exception as e:
+                logger.error(f" GENERAL EXCEPTION {e} from {client_address}:{client_port}")
+                break
+        logger.info(f"Stop listening from {client_address}:{client_port}")
 
 
 @click.command()

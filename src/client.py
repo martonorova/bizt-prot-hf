@@ -6,7 +6,7 @@ import click
 import clientsession
 
 from message import MessageType
-from common import SoftException, init_logging, BrakeListeningException
+from common import SoftException, init_logging, BrakeListeningException, HardException
 from crypto_helpers import load_publickey
 
 init_logging()
@@ -24,11 +24,16 @@ class Client:
 
     def __del__(self):
         if self.__session is not None:
+            logger.debug("Client destructor sesssion close")
             self.__session.close()
 
     def __connect(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(self.addr)
+        try:
+            sock.connect(self.addr)
+        except ConnectionRefusedError:
+            logger.error('Connection refused, exiting...')
+            sys.exit(1)
         logger.debug("Client connected to server")
         self.__session = clientsession.ClientSession(sock, self.pubkey)
 
@@ -38,7 +43,12 @@ class Client:
             sys.exit(1)
 
         self.__session.login(self.user, password)
-        self.__receive()
+        try:
+            self.__receive()
+        except HardException as e:
+            logger.error(f'Error occured: {e!r}, exiting...')
+            self.close()
+            sys.exit(1)
     
     def process_command(self, command: str):
         try:
@@ -48,6 +58,9 @@ class Client:
                     self.__receive()
             except BrakeListeningException:
                 logger.debug('End of processing command responses')
+            except HardException as he:
+                logger.error(f'Error occured: {he!r}')
+                self.close()
         except SoftException as e:
             logger.warning(e)
 

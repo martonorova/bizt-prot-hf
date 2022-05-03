@@ -8,7 +8,7 @@ from options import show_messages
 import socket
 import logging
 from users import User
-from common import init_logging, BrakeListeningException
+from common import init_logging, BrakeListeningException, HardException
 
 init_logging()
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class Session(object):
         if len(buffer) == 0: # empty buffer indicates connection closing from other side
             err_msg = "Connection closed from other party (read empty data from socket)"
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         header = Header.deserialize(buffer)
         # read in the rest of the message
@@ -57,12 +57,14 @@ class Session(object):
         except BrakeListeningException:
             logger.debug("Propagate BrakeListeningException")
             raise
-        except Exception as e:
+        except HardException as he:
+            logger.error(f'Error occured: {he!r}')
             self.close()
-            # TODO close client program on exception
-            # TODO close server session gracefuly 
+            raise BrakeListeningException()
+        except Exception as e:
+            self.close() 
             logger.error(
-                f'Error occured'
+                f' GENERAL Error occured '
                 f'{e!r}'
             )
 
@@ -147,8 +149,9 @@ class Session(object):
     def close(self):
         try:
             if self.socket is not None:
-                logger.info(f"Closing connection")
+                logger.info(f"Closing connection...")
                 self.socket.close()
+                logger.info(f"Closed connection")
         except OSError as e:
             logger.error(f"Error: Session.socket.close() exception: {e!r}")
         finally:
