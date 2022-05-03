@@ -57,7 +57,7 @@ class ClientSessionSM:
         if type is not MessageType.LOGIN_RES:
             err_msg = f'Invalid MessageType: {type.name}'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         lines = payload.decode("utf-8").split('\n')
         request_hash = lines[0]
@@ -65,11 +65,11 @@ class ClientSessionSM:
         if len(server_random) != 16:
             err_msg = 'Invalid random'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
         if request_hash != self.__prev_req_hash:
             err_msg = 'Invalid hash'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         self.__session.key = symmetric_key(server_random, self.__state_data, bytes.fromhex(request_hash))
         self.__prev_req_hash = None
@@ -83,7 +83,7 @@ class ClientSessionSM:
         if type is not MessageType.COMMAND_RES:
             err_msg = f'Invalid MessageType: {type.name}'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
         lines = payload.decode('UTF-8').split('\n')
         command = lines[0]
         request_hash = lines[1]
@@ -91,13 +91,13 @@ class ClientSessionSM:
         if (command, request_hash) != self.__prev_req_hash:
             err_msg = 'Invalid Hash from server response'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         fn = self.__cph__fn_chart.get(command)
         if fn is None:
             err_msg = 'Invalid CommandType'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
         if not fn(self, results):
             raise BrakeListeningException()
 
@@ -179,14 +179,14 @@ class ClientSessionSM:
         if not(type is MessageType.UPLOAD_RES):
             err_msg = f'Invalid MessageType: {type.name}'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         lines = payload.decode('UTF-8').split('\n')
         state_data: FileTransferData = self.__state_data
         if not(lines[0] == state_data.file_hash and lines[1] == state_data.file_size):
             err_msg = 'Invalid hash after upload'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
         self.__state = States.Commanding
         self.__state_data = None
         print('Upload successful')
@@ -209,7 +209,7 @@ class ClientSessionSM:
         if not(type is MessageType.DOWNLOAD_RES_0 or type is MessageType.DOWNLOAD_RES_1):
             err_msg = f'Invalid MessageType: {type.name}'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
         state_data: FileTransferData = self.__state_data
 
         state_data.buffer += payload
@@ -218,16 +218,16 @@ class ClientSessionSM:
             if len(payload) != 1024:
                 err_msg = 'Invalid fragment size'
                 logger.debug(err_msg)
-                raise Exception(err_msg)
+                raise HardException(err_msg)
 
         if type is MessageType.DOWNLOAD_RES_1:
             if len(payload) > 1024:
                 err_msg = 'Invalid fragment size'
                 logger.debug(err_msg)
-                raise Exception(err_msg)
+                raise HardException(err_msg)
             if not state_data.validate():
                 logger.debug('Hash not matching, file transfer terminated')
-                raise Exception('Invalid downloaded file')
+                raise HardException('Invalid downloaded file')
 
             save_file(state_data.file_name, state_data.buffer)
             self.__state_data = None

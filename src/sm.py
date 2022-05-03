@@ -47,7 +47,7 @@ class SessionSM:
         if type is not MessageType.LOGIN_REQ:
             err_msg = 'Invalid MessageType'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         lines = payload.decode("utf-8").split('\n')
 
@@ -59,17 +59,17 @@ class SessionSM:
         if len(cli_rand) != 16:
             err_msg = 'Invalid random'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         if abs(time.time_ns() - timestamp) > self.__ts_diff_threshold_ps:
             err_msg = 'Invalid timestamp'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         if not users.authenticate(username, password):
             err_msg = 'Invalid user:passwd pair'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         self.__session.user = User(username)        
 
@@ -90,7 +90,7 @@ class SessionSM:
         if type is not MessageType.COMMAND_REQ:
             err_msg = f'Invalid MessageType: {type.name}'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         lines = payload.decode('UTF-8').split('\n')
         cmd = lines[0]
@@ -100,7 +100,7 @@ class SessionSM:
         if fn is None:
             rerr_msg = 'Invalid CommandType'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         try:
             fn_results = fn(self, params)
@@ -117,7 +117,7 @@ class SessionSM:
         if not(type is MessageType.UPLOAD_REQ_0 or type is MessageType.UPLOAD_REQ_1):
             err_msg = f'Invalid MessageType: {type.name}'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
         state_data: FileTransferData = self.__state_data
 
         state_data.buffer += payload
@@ -128,7 +128,7 @@ class SessionSM:
                 self.__state = States.AwaitingCommands
                 err_msg = 'Invalid fragment size'
                 logger.debug(err_msg)
-                raise Exception(err_msg)
+                raise HardException(err_msg)
 
         if type is MessageType.UPLOAD_REQ_1:
             if len(payload) > 1024:
@@ -136,13 +136,13 @@ class SessionSM:
                 self.__state = States.AwaitingCommands
                 err_msg = 'Invalid fragment size'
                 logger.debug(err_msg)
-                raise Exception(err_msg)
+                raise HardException(err_msg)
             if not state_data.validate():
                 self.__state_data = None
                 self.__state = States.AwaitingCommands
                 err_msg = 'Invalid uploaded file'
                 logger.debug(err_msg)
-                raise Exception(err_msg)
+                raise HardException(err_msg)
             upload(self.__session.user, state_data.file_name, state_data.buffer)
             self.__state_data = None
             self.__state = States.AwaitingCommands
@@ -155,14 +155,14 @@ class SessionSM:
         if not(type is MessageType.DOWNLOAD_REQ):
             err_msg = f'Invalid MessageType: {type.name}'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
         state_data: str = self.__state_data
         payload = payload.decode('UTF-8')
 
         if not(payload == READY or payload == CANCEL):
             err_msg = 'Invalid params'
             logger.debug(err_msg)
-            raise Exception(err_msg)
+            raise HardException(err_msg)
 
         if payload == READY:
             data = download(self.__session.user, state_data)
