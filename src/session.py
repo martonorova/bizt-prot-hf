@@ -3,11 +3,12 @@ from message import Message, Header, MessageType, HDR_LEN, MAC_LEN, ETK_LEN
 
 from Crypto.Cipher import AES
 from Crypto import Random
+from options import show_messages
 
 import socket
 import logging
 from users import User
-from common import init_logging, BrakeListeningException
+from common import init_logging, BrakeListeningException, HardException
 
 init_logging()
 logger = logging.getLogger(__name__)
@@ -22,23 +23,27 @@ class Session(object):
 
     def send(self, message: Message):
         self.socket.sendall(message.serialize())
-        logger.debug(f"Sent Message: {message}")
+        if show_messages:
+            logger.debug(f"Sent Message: {message}")
 
     def receive(self) -> Tuple[MessageType, bytes]:
         buffer: bytes = b''
         # read in the header
         buffer += self.socket.recv(HDR_LEN) # messages do not exceed 1kB + MTP overhead
         if len(buffer) == 0: # empty buffer indicates connection closing from other side
-            raise Exception("Connection closed from other party (read empty data from socket)")
+            err_msg = "Connection closed from other party (read empty data from socket)"
+            logger.debug(err_msg)
+            raise HardException(err_msg)
 
         header = Header.deserialize(buffer)
         # read in the rest of the message
         buffer += self.socket.recv(header.length - HDR_LEN)
 
         message = Message.deserialize(buffer)
-        logger.debug(f"Received Message: {message}")
+        if show_messages:
+            logger.debug(f"Received Message: {message}")
         message_type, payload = self.decrypt(message)
-        logger.debug(f"Received payload:\n{payload.decode('UTF-8')}")
+        logger.debug(f"Received payload:\n{payload.decode('UTF-8')}\n")
 
         return message_type, payload
 
@@ -50,13 +55,16 @@ class Session(object):
         try:
             self.sm.receive_message(message_type, payload)
         except BrakeListeningException:
+            logger.debug("Propagate BrakeListeningException")
             raise
-        except Exception as e:
+        except HardException as he:
+            logger.error(f'Error occured: {he!r}')
             self.close()
-            # TODO close client program on exception
-            # TODO close server session gracefuly 
+            raise BrakeListeningException()
+        except Exception as e:
+            self.close() 
             logger.error(
-                f'Error occured'
+                f' GENERAL Error occured '
                 f'{e!r}'
             )
 
@@ -141,8 +149,9 @@ class Session(object):
     def close(self):
         try:
             if self.socket is not None:
-                logger.info(f"Closing connection")
+                logger.info(f"Closing connection...")
                 self.socket.close()
+                logger.info(f"Closed connection")
         except OSError as e:
             logger.error(f"Error: Session.socket.close() exception: {e!r}")
         finally:

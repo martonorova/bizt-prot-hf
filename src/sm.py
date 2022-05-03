@@ -11,6 +11,9 @@ from math import ceil
 from Crypto import Random
 import options
 
+init_logging()
+logger = logging.getLogger(__name__)
+
 class States(Enum):
     Connecting = 0
     AwaitingCommands = 2
@@ -42,7 +45,9 @@ class SessionSM:
     # <region: Login Protocol request handler>
     def __login_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if type is not MessageType.LOGIN_REQ:
-            raise Exception('Invalid MessageType')
+            err_msg = 'Invalid MessageType'
+            logger.debug(err_msg)
+            raise HardException(err_msg)
 
         lines = payload.decode("utf-8").split('\n')
 
@@ -52,13 +57,19 @@ class SessionSM:
         cli_rand = bytes.fromhex(lines[3])
 
         if len(cli_rand) != 16:
-            raise Exception('Invalid random')
+            err_msg = 'Invalid random'
+            logger.debug(err_msg)
+            raise HardException(err_msg)
 
         if abs(time.time_ns() - timestamp) > self.__ts_diff_threshold_ps:
-            raise Exception('Invalid timestamp')
+            err_msg = 'Invalid timestamp'
+            logger.debug(err_msg)
+            raise HardException(err_msg)
 
         if not users.authenticate(username, password):
-            raise Exception('Invalid user:passwd pair')
+            err_msg = 'Invalid user:passwd pair'
+            logger.debug(err_msg)
+            raise HardException(err_msg)
 
         self.__session.user = User(username)        
 
@@ -77,7 +88,9 @@ class SessionSM:
     # <region: High level request handlers>
     def __command_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if type is not MessageType.COMMAND_REQ:
-            raise Exception('Invalid MessageType')
+            err_msg = f'Invalid MessageType: {type.name}'
+            logger.debug(err_msg)
+            raise HardException(err_msg)
 
         lines = payload.decode('UTF-8').split('\n')
         cmd = lines[0]
@@ -85,7 +98,9 @@ class SessionSM:
 
         fn = self.__cph__fn_chart.get(cmd)
         if fn is None:
-            raise Exception('Invalid CommandType')
+            rerr_msg = 'Invalid CommandType'
+            logger.debug(err_msg)
+            raise HardException(err_msg)
 
         try:
             fn_results = fn(self, params)
@@ -100,7 +115,9 @@ class SessionSM:
 
     def __upload_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if not(type is MessageType.UPLOAD_REQ_0 or type is MessageType.UPLOAD_REQ_1):
-            raise Exception('Invalid MessageType')
+            err_msg = f'Invalid MessageType: {type.name}'
+            logger.debug(err_msg)
+            raise HardException(err_msg)
         state_data: FileTransferData = self.__state_data
 
         state_data.buffer += payload
@@ -109,17 +126,23 @@ class SessionSM:
             if len(payload) != 1024:
                 self.__state_data = None
                 self.__state = States.AwaitingCommands
-                raise Exception('Invalid fragment size')
+                err_msg = 'Invalid fragment size'
+                logger.debug(err_msg)
+                raise HardException(err_msg)
 
         if type is MessageType.UPLOAD_REQ_1:
             if len(payload) > 1024:
                 self.__state_data = None
                 self.__state = States.AwaitingCommands
-                raise Exception('Invalid fragment size')
+                err_msg = 'Invalid fragment size'
+                logger.debug(err_msg)
+                raise HardException(err_msg)
             if not state_data.validate():
                 self.__state_data = None
                 self.__state = States.AwaitingCommands
-                raise Exception('Invalid uploaded file')
+                err_msg = 'Invalid uploaded file'
+                logger.debug(err_msg)
+                raise HardException(err_msg)
             upload(self.__session.user, state_data.file_name, state_data.buffer)
             self.__state_data = None
             self.__state = States.AwaitingCommands
@@ -130,12 +153,16 @@ class SessionSM:
 
     def __download_protocol_handler(self, type: MessageType, payload: bytes) -> None:
         if not(type is MessageType.DOWNLOAD_REQ):
-            raise Exception('Invalid MessageType')
+            err_msg = f'Invalid MessageType: {type.name}'
+            logger.debug(err_msg)
+            raise HardException(err_msg)
         state_data: str = self.__state_data
         payload = payload.decode('UTF-8')
 
         if not(payload == READY or payload == CANCEL):
-            raise Exception('Invalid params')
+            err_msg = 'Invalid params'
+            logger.debug(err_msg)
+            raise HardException(err_msg)
 
         if payload == READY:
             data = download(self.__session.user, state_data)
@@ -153,17 +180,23 @@ class SessionSM:
     # <region: Command Protocol request handlers per command type>
     def __cph__pwd(self, params: list[str]):
         if len(params) != 0:
-            raise SoftException('Invalid params')
+            err_msg = 'Invalid params'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
         return [SUCCESS, cmd_pwd(self.__session.user)]
 
     def __cph__lst(self, params: list[str]):
         if len(params) != 0:
-            raise SoftException('Invalid params')
+            err_msg = 'Invalid params'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
         return [SUCCESS, base64_encode(cmd_lst(self.__session.user)).hex()]
 
     def __cph__chd(self, params: list[str]):
         if len(params) != 1:
-            raise SoftException('Invalid params')
+            err_msg = 'Invalid params'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
         if cmd_chd(self.__session.user, params[0]):
             return [SUCCESS]
         else:
@@ -171,7 +204,9 @@ class SessionSM:
 
     def __cph__mkd(self, params: list[str]):
         if len(params) != 1:
-            raise SoftException('Invalid params')
+            err_msg = 'Invalid params'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
         if cmd_mkd(self.__session.user, params[0]):
             return [SUCCESS]
         else:
@@ -179,7 +214,9 @@ class SessionSM:
 
     def __cph__del(self, params: list[str]):
         if len(params) != 1:
-            raise SoftException('Invalid params')
+            err_msg = 'Invalid params'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
         if cmd_del(self.__session.user, params[0]):
             return [SUCCESS]
         else:
