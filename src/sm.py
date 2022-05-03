@@ -89,7 +89,7 @@ class SessionSM:
 
         try:
             fn_results = fn(self, params)
-        except:
+        except SoftException:
             fn_results = [FAILURE]
 
         cmd_hash = sha256(payload)
