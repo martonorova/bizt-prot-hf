@@ -36,7 +36,6 @@ class ServerSession(session.Session):
 
     def retrieve_decrypt_transfer_key(self, message: Message) -> bytes:
         if message.typ == MessageType.LOGIN_REQ:
-            logger.info("received LOGIN_REQ message")
             self.tk = self.__decrypt_temporary_key(message.etk)
             transfer_key = self.tk      
         else:
