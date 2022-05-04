@@ -30,3 +30,6 @@ Commands are the 7 commands from the doc.
 ## TODO & bugs
 
 - READ SPECIFICATION!!!
+
+- Login protocol: "Preferably, the server should also check if the same request was not recieved in another connection (with another client) within the acceptance time window around the current time at the server." --- this is not implemented
+- del command:  Directories should only be deleted if they are empty, otherwise the del command should fail. --- do we check this?
