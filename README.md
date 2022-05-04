@@ -30,3 +30,4 @@ Commands are the 7 commands from the doc.
 ## TODO & bugs
 
 - READ SPECIFICATION!!!
+- Reset SIFT_TS_DIFF_THRESHOLD
