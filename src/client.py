@@ -73,7 +73,7 @@ class Client:
 
 
 @click.command()
-@click.option('--user', '-u', type=click.STRING, help='Username to connect to a SIFT server', required=True, default='alice', show_default=True)
+@click.option('--user', '-u', type=click.STRING, help='Username to connect to a SIFT server', required=True)
 @click.option('--host', '-h', type=click.STRING, help='SIFT server host', default='localhost', show_default=True, required=True)
 @click.option('--port', '-p', type=click.INT, help='SIFT server port number', default=5150, show_default=True, required=True)
 @click.option('--pubkeyfile', '-k', type=click.STRING, help='Server public key file in PEM format', default='pubkey.pem', show_default=True, required=True)
