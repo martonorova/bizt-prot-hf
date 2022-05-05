@@ -1,4 +1,3 @@
-import json
 import base64
 import hashlib
 import getpass
@@ -20,13 +19,13 @@ def sha256b(param: bytes) -> bytes:
 
 
 def base64_encode(list: list[str]):
-    json_encoded_list = json.dumps(list).encode('UTF-8')
-    return base64.b64encode(json_encoded_list)
+    encoded_list = '\t'.join(list).encode('UTF-8')
+    return base64.b64encode(encoded_list)
 
 
 def base64_decode(bytes):
     decoded_list = base64.b64decode(bytes)
-    return json.loads(decoded_list)
+    return decoded_list.decode('UTF-8')
 
 
 def symmetric_key(srv_rand: bytes, cli_rand: bytes, req_hash: bytes) -> bytes:
