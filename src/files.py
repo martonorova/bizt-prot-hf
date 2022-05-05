@@ -89,11 +89,14 @@ def cmd_mkd(user: User, path: str) -> bool:
 def cmd_del(user: User, path: str) -> bool:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(__parse_path(user, path))
-    if os.path.isfile(os_path):
-        os.remove(os_path)
-    elif os.path.isdir(os_path):
-        shutil.rmtree(os_path)
-    else:
+    try:
+        if os.path.isfile(os_path):
+            os.remove(os_path)
+        elif os.path.isdir(os_path):
+            os.rmdir(os_path)
+        else:
+            return False
+    except:
         return False
     return True
 
