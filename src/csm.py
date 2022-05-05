@@ -107,7 +107,7 @@ class ClientSessionSM:
                 err_msg = 'Invalid response payload'
                 logger.debug(err_msg)
                 raise SoftException(err_msg)
-            print(f'PWD: {results[1]}')
+            print(f'PWD:\n{results[1]}')
         else:
             print('Request failed')
 
@@ -117,7 +117,7 @@ class ClientSessionSM:
                 err_msg = 'Invalid response payload'
                 logger.debug(err_msg)
                 raise SoftException(err_msg)
-            print(f'List of files: {base64_decode(bytes.fromhex(results[1]))}')
+            print(f'List of files:\n{base64_decode(results[1])}')
         else:
             print('Request failed')
 

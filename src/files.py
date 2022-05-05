@@ -55,9 +55,9 @@ def __create_home(user: User) -> None:
 def cmd_pwd(user: User) -> str:
     __create_home(user)
     if len(user.pwd) == 0:
-        return '~'
+        return '/'
     else:
-        return '~/' + __join_path(user.pwd)
+        return __join_path(user.pwd)+'/'
 
 
 def cmd_lst(user: User) -> list[str]:
