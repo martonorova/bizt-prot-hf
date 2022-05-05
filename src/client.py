@@ -61,6 +61,8 @@ class Client:
             except HardException as he:
                 logger.error(f'Error occured: {he!r}')
                 self.close()
+                logger.error('Exiting...')
+                sys.exit(1)
         except SoftException as e:
             logger.warning(e)
 

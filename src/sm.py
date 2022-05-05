@@ -190,7 +190,11 @@ class SessionSM:
             err_msg = 'Invalid params'
             logger.debug(err_msg)
             raise SoftException(err_msg)
-        return [SUCCESS, base64_encode(cmd_lst(self.__session.user)).decode()]
+        lst = cmd_lst(self.__session.user)
+        if lst:
+            return [SUCCESS, base64_encode(lst).decode()]
+        else:
+            return [FAILURE]
 
     def __cph__chd(self, params: list[str]):
         if len(params) != 1:

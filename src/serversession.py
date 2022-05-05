@@ -4,7 +4,7 @@ import sm
 from message import MessageType, Message
 
 from Crypto.Cipher import PKCS1_OAEP
-from common import init_logging
+from common import init_logging, HardException
 
 import logging
 
@@ -15,6 +15,15 @@ class ServerSession(session.Session):
         super().__init__(socket)
         self.sm = sm.SessionSM(self)
         self.keypair = keypair
+
+    def validate_sqn(self, sqn_to_validate: int):
+        logger.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
+        if self.key is None:
+            if sqn_to_validate != 1: # the LOGIN_REQ message sqn must be 1
+                raise HardException(f"First sqn must be 1, received: {sqn_to_validate}!")
+        if (sqn_to_validate <= self.sqn):
+            raise HardException(f"Message sequence number is too old: {sqn_to_validate}!")
+        logger.debug(f"Sequence number verification is successful.")
     
     def __decrypt_temporary_key(self, etk: bytes) -> bytes:
         RSAcipher = PKCS1_OAEP.new(self.keypair)

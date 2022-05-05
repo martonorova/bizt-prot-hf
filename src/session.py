@@ -43,7 +43,8 @@ class Session(object):
         if show_messages:
             logger.debug(f"Received Message: {message}")
         message_type, payload = self.decrypt(message)
-        logger.debug(f"Received payload:\n{payload.decode('UTF-8')}\n")
+        if show_messages:
+            logger.debug(f"Received payload:\n{payload.decode('UTF-8')}\n")
 
         return message_type, payload
 
@@ -108,12 +109,9 @@ class Session(object):
         encrypted_payload, authtag = self.encrypt_payload(transfer_key, header, payload)
 
         return Message(header, encrypted_payload, authtag, etk)
-    
+
     def validate_sqn(self, sqn_to_validate: int):
-        logger.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
-        if (sqn_to_validate <= self.sqn):
-            raise ValueError(f"Message sequence number is too old: {sqn_to_validate}!")
-        logger.debug(f"Sequence number verification is successful.")
+        raise NotImplementedError("Called from base Session instance!")
 
     def decrypt_payload(self, key: bytes, message: Message) -> bytes:
         logger.debug("Attempt decryption and authentication tag verification...")

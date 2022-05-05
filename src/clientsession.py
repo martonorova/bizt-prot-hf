@@ -2,7 +2,7 @@ from typing import Tuple
 import session
 import csm
 from message import MessageType, Message, ETK_LEN
-from common import init_logging
+from common import init_logging, HardException
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto import Random
@@ -23,6 +23,15 @@ class ClientSession(session.Session):
 
     def command(self, command: str):
         self.sm.command(command)
+
+    def validate_sqn(self, sqn_to_validate: int):
+        logger.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
+        if self.key is None:
+            if sqn_to_validate != 2: # the LOGIN_RES message sqn must be 2
+                raise HardException(f"First sqn must be 2, received: {sqn_to_validate}!")
+        if (sqn_to_validate <= self.sqn):
+            raise HardException(f"Message sequence number is too old: {sqn_to_validate}!")
+        logger.debug(f"Sequence number verification is successful.")
 
     def __encrypt_temporary_key(self, temp_key: bytes) -> bytes:
         RSAcipher = PKCS1_OAEP.new(self.pubkey)

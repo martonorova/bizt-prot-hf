@@ -63,7 +63,11 @@ def cmd_pwd(user: User) -> str:
 def cmd_lst(user: User) -> list[str]:
     __create_home(user)
     os_path = __os_path_prefix(user) + __join_path(user.pwd)
-    return os.listdir(os_path)
+    try:
+        contents = os.listdir(os_path)
+    except:
+        return None
+    return contents
 
 
 def cmd_chd(user: User, path: str) -> bool:
