@@ -109,7 +109,7 @@ class ClientSessionSM:
                 raise SoftException(err_msg)
             print(f'PWD:\n{results[1]}')
         else:
-            print('Request failed')
+            print('Request failed, reason:\n' + safe_get(results))
 
     def __cph__lst(self, results: list[str]):
         if results[0] == SUCCESS:
@@ -119,7 +119,7 @@ class ClientSessionSM:
                 raise SoftException(err_msg)
             print(f'List of files:\n{base64_decode(results[1])}')
         else:
-            print('Request failed')
+            print('Request failed, reason:\n' + safe_get(results))
 
     def __cph__chd_mkd_del(self, results: list[str]):
         if results[0] == SUCCESS:
@@ -129,7 +129,7 @@ class ClientSessionSM:
                 raise SoftException(err_msg)
             print('Success')
         else:
-            print('Request failed')
+            print('Request failed, reason:\n' + safe_get(results))
 
     def __cph__upl(self, results: list[str]):
         if results[0] == ACCEPT:
@@ -142,7 +142,7 @@ class ClientSessionSM:
             self.__proceed_upload()
             return True
         else:
-            print('Request failed')
+            print('Request failed, reason:\n' + safe_get(results))
             self.__state_data = None
 
     def __cph__dnl(self, results: list[str]):
@@ -160,7 +160,7 @@ class ClientSessionSM:
             self.__proceed_download()
             return True
         else:
-            print('Request failed')
+            print('Request failed, reason:\n' + safe_get(results))
             self.__state_data = None
 
     __cph__fn_chart = {
@@ -195,7 +195,7 @@ class ClientSessionSM:
 
     def __proceed_upload(self):
         state_data: FileTransferData = self.__state_data
-        data = get_file(state_data.file_name)
+        data, _ = get_file(state_data.file_name)
         fragment_count = ceil(len(data) / 1024)
         for i in range(fragment_count):
             fragment = data[i*1024:i*1024+1024]
@@ -229,10 +229,13 @@ class ClientSessionSM:
                 logger.debug('Hash not matching, file transfer terminated')
                 raise HardException('Invalid downloaded file')
 
-            save_file(state_data.file_name, state_data.buffer)
+            success, err = save_file(state_data.file_name, state_data.buffer)
             self.__state_data = None
             self.__state = States.Commanding
-            print('Download successful')
+            if success:
+                print('Download successful')
+            else:
+                print(err)
             raise BrakeListeningException()
 
 
@@ -308,11 +311,11 @@ class ClientSessionSM:
 
     # Helper function for upload process
     def __get_file_data(self, fname: str) -> Tuple[str, str]:
-        data = get_file(fname)
+        data, err = get_file(fname)
         if data:
             return str(len(data)), sha256(data)
         else:
-            err_msg = 'File not found'
+            err_msg = err
             logger.debug(err_msg)
             raise SoftException(err_msg)
 

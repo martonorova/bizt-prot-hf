@@ -37,3 +37,7 @@ class SoftException(Exception):
 class HardException(Exception):
     pass
 
+def safe_get(lst: list):
+    if len(lst) >= 2:
+        return lst[1]
+    return 'Unknown'

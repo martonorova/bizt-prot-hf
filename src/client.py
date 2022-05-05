@@ -49,7 +49,7 @@ class Client:
             logger.error(f'Error occured: {e!r}, exiting...')
             self.close()
             sys.exit(1)
-    
+
     def process_command(self, command: str):
         try:
             self.__session.command(command)
@@ -88,7 +88,7 @@ def cli(user, host, port, pubkeyfile):
     try:
         while True:
             command = click.prompt('>>>', type=str)
-            if command == 'quit':
+            if command == 'quit' or command == 'exit':
                 break
             client.process_command(command)
     except KeyboardInterrupt:

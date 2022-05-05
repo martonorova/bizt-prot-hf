@@ -71,7 +71,7 @@ class SessionSM:
             logger.debug(err_msg)
             raise HardException(err_msg)
 
-        self.__session.user = User(username)        
+        self.__session.user = User(username)
 
         srv_rand = Random.get_random_bytes(16)
         req_hash = sha256b(payload)
@@ -104,8 +104,8 @@ class SessionSM:
 
         try:
             fn_results = fn(self, params)
-        except SoftException:
-            fn_results = [FAILURE]
+        except SoftException as e:
+            fn_results = [FAILURE, f'{e}']
 
         cmd_hash = sha256(payload)
         response_payload_lines = [cmd, cmd_hash] + fn_results
@@ -143,7 +143,10 @@ class SessionSM:
                 err_msg = 'Invalid uploaded file'
                 logger.debug(err_msg)
                 raise HardException(err_msg)
-            upload(self.__session.user, state_data.file_name, state_data.buffer)
+            success, err = upload(self.__session.user, state_data.file_name, state_data.buffer)
+            if err:
+                logger.error(err)
+
             self.__state_data = None
             self.__state = States.AwaitingCommands
             response_payload_lines = [state_data.file_hash, state_data.file_size]
@@ -165,7 +168,7 @@ class SessionSM:
             raise HardException(err_msg)
 
         if payload == READY:
-            data = download(self.__session.user, state_data)
+            data, _ = download(self.__session.user, state_data)
             fragment_count = ceil(len(data) / 1024)
             for i in range(fragment_count):
                 fragment = data[i*1024:i*1024+1024]
@@ -190,58 +193,70 @@ class SessionSM:
             err_msg = 'Invalid params'
             logger.debug(err_msg)
             raise SoftException(err_msg)
-        lst = cmd_lst(self.__session.user)
-        if lst:
+        lst, err = cmd_lst(self.__session.user)
+        if lst is not None:
             return [SUCCESS, base64_encode(lst).decode()]
         else:
-            return [FAILURE]
+            return [FAILURE, err]
 
     def __cph__chd(self, params: list[str]):
         if len(params) != 1:
             err_msg = 'Invalid params'
             logger.debug(err_msg)
             raise SoftException(err_msg)
-        if cmd_chd(self.__session.user, params[0]):
+        res, err = cmd_chd(self.__session.user, params[0])
+        if res is not None:
             return [SUCCESS]
         else:
-            return [FAILURE]
+            return [FAILURE, err]
 
     def __cph__mkd(self, params: list[str]):
         if len(params) != 1:
             err_msg = 'Invalid params'
             logger.debug(err_msg)
             raise SoftException(err_msg)
-        if cmd_mkd(self.__session.user, params[0]):
+        res, err = cmd_mkd(self.__session.user, params[0])
+        if res is not None:
             return [SUCCESS]
         else:
-            return [FAILURE]
+            return [FAILURE, err]
 
     def __cph__del(self, params: list[str]):
         if len(params) != 1:
             err_msg = 'Invalid params'
             logger.debug(err_msg)
             raise SoftException(err_msg)
-        if cmd_del(self.__session.user, params[0]):
+        res, err = cmd_del(self.__session.user, params[0])
+        if res is not None:
             return [SUCCESS]
         else:
-            return [FAILURE]
+            return [FAILURE, err]
 
     def __cph__upl(self, params: list[str]):
-        if validate_path(self.__session.user, params[0]):
+        if len(params) != 3:
+            err_msg = 'Invalid params'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
+        valid, err = validate_path(self.__session.user, params[0])
+        if valid:
             self.__state = States.Uploading
             self.__state_data = FileTransferData(params)
             return [ACCEPT]
-        else:
-            return [REJECT]
+        return [REJECT, err]
 
     def __cph__dnl(self, params: list[str]):
-        data = cmd_dnl(self.__session.user, params[0])
-        if data and validate_path(self.__session.user, params[0]):
-            self.__state = States.Downloading
-            self.__state_data = params[0]
-            return [ACCEPT, *data]
-        else:
-            return [REJECT]
+        if len(params) != 1:
+            err_msg = 'Invalid params'
+            logger.debug(err_msg)
+            raise SoftException(err_msg)
+        data, err = cmd_dnl(self.__session.user, params[0])
+        if data:
+            valid, err = validate_path(self.__session.user, params[0])
+            if valid:
+                self.__state = States.Downloading
+                self.__state_data = params[0]
+                return [ACCEPT, *data]
+        return [REJECT, err]
 
     __cph__fn_chart = {
         'pwd': __cph__pwd,
