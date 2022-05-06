@@ -29,7 +29,7 @@ def base64_decode(bytes):
 
 
 def symmetric_key(srv_rand: bytes, cli_rand: bytes, req_hash: bytes) -> bytes:
-    master_secret = srv_rand + cli_rand
+    master_secret = cli_rand + srv_rand
     salt = req_hash
     symmetric_key = HKDF(master_secret, 32, salt, SHA256, 1)
     return symmetric_key

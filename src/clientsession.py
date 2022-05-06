@@ -18,6 +18,7 @@ class ClientSession(session.Session):
         self.sm = csm.ClientSessionSM(self)
         self.pubkey = pubkey
 
+
     def login(self, user, password):
         self.sm.login(user, password)
 
@@ -25,11 +26,11 @@ class ClientSession(session.Session):
         self.sm.command(command)
 
     def validate_sqn(self, sqn_to_validate: int):
-        logger.debug(f"Expecting sequence number {str(self.sqn + 1)} or larger...")
+        logger.debug(f"Expecting sequence number {str(self.r_sqn + 1)} or larger...")
         if self.key is None:
-            if sqn_to_validate != 2: # the LOGIN_RES message sqn must be 2
-                raise HardException(f"First sqn must be 2, received: {sqn_to_validate}!")
-        if (sqn_to_validate <= self.sqn):
+            if sqn_to_validate != 1: # the LOGIN_RES message sqn must be 2
+                raise HardException(f"First sqn must be 1, received: {sqn_to_validate}!")
+        if (sqn_to_validate <= self.r_sqn):
             raise HardException(f"Message sequence number is too old: {sqn_to_validate}!")
         logger.debug(f"Sequence number verification is successful.")
 

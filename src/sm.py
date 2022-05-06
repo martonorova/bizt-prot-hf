@@ -249,13 +249,13 @@ class SessionSM:
             err_msg = 'Invalid params'
             logger.debug(err_msg)
             raise SoftException(err_msg)
-        data, err = cmd_dnl(self.__session.user, params[0])
+        data, data2, err = cmd_dnl(self.__session.user, params[0])
         if data:
             valid, err = validate_path(self.__session.user, params[0])
             if valid:
                 self.__state = States.Downloading
                 self.__state_data = params[0]
-                return [ACCEPT, *data]
+                return [ACCEPT, data, data2]
         return [REJECT, err]
 
     __cph__fn_chart = {

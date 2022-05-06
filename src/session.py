@@ -17,7 +17,8 @@ class Session(object):
         self.user : User = None
         self.sm = None
         self.socket : socket.socket = _socket
-        self.sqn : int = 0 # sequence number
+        self.s_sqn: int = 0  # self sequence number
+        self.r_sqn: int = 0  # remote sequence number
         self.key : bytes = None
         self.tk: bytes = b'' # temporary key
 
@@ -84,12 +85,12 @@ class Session(object):
 
     def create_header(self, typ: MessageType, payload: bytes) -> Header:
         msg_length = self.calculate_header_len(typ, payload)
-        self.sqn += 1
+        self.s_sqn += 1
         header = Header(
                 ver=b'\x01\x00',
                 typ=typ,
                 length=msg_length, #
-                sqn=self.sqn,
+                sqn=self.s_sqn,
                 rnd=Random.get_random_bytes(6),
                 rsv=b'\x00\x00'
             )
@@ -104,6 +105,8 @@ class Session(object):
         header = self.create_header(typ, payload)
         
         transfer_key, etk = self.retrieve_encrypt_transfer_key(typ)
+
+        logger.info(f'trasfer key: {transfer_key}')
 
         # encrypt payload
         encrypted_payload, authtag = self.encrypt_payload(transfer_key, header, payload)
@@ -140,7 +143,7 @@ class Session(object):
         payload = self.decrypt_payload(transfer_key, message)
 
         # update sequence number
-        self.sqn = message.header.sqn
+        #self.s_sqn = message.header.sqn
         
         return (message.header.typ, payload)
 

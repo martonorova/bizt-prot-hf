@@ -110,7 +110,7 @@ def cmd_dnl(user: User, fname: str):
     if data:
         return str(len(data)), sha256(data), None
     else:
-        return None, err
+        return None, None, err
 
 
 def validate_path(user: User, fname: str):
