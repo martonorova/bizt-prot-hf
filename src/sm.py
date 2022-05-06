@@ -24,6 +24,8 @@ class States(Enum):
 ts_diff_threshold = options.ts_diff_threshold
 __ts_diff_threshold_ps = 1000*1000*1000*0.5 * ts_diff_threshold
 
+logger.info(f"ts_diff_threshold: {ts_diff_threshold}")
+
 class SessionSM:
     def __init__(self, session) -> None:
         ts_diff_threshold = options.ts_diff_threshold
@@ -237,7 +239,7 @@ class SessionSM:
             err_msg = 'Invalid params'
             logger.debug(err_msg)
             raise SoftException(err_msg)
-        valid, err = validate_path(self.__session.user, params[0])
+        valid, err = validate_path(self.__session.user, params[0], is_downl=False)
         if valid:
             self.__state = States.Uploading
             self.__state_data = FileTransferData(params)
@@ -251,7 +253,7 @@ class SessionSM:
             raise SoftException(err_msg)
         data, data2, err = cmd_dnl(self.__session.user, params[0])
         if data:
-            valid, err = validate_path(self.__session.user, params[0])
+            valid, err = validate_path(self.__session.user, params[0], is_downl=True)
             if valid:
                 self.__state = States.Downloading
                 self.__state_data = params[0]

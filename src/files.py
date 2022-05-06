@@ -113,7 +113,7 @@ def cmd_dnl(user: User, fname: str):
         return None, None, err
 
 
-def validate_path(user: User, fname: str):
+def validate_path(user: User, fname: str, is_downl: bool):
     try:
         __create_home(user)
         os_path = __os_path_prefix(user) + __join_path(__parse_path(user, fname)[:-1])
@@ -123,8 +123,10 @@ def validate_path(user: User, fname: str):
         b_already_exists = exists(os_path)
         if b_ex and b_dir and not b_already_exists:
             return True, None
-        if b_already_exists:
+        if b_already_exists and not is_downl:
             return None, 'File already exists'
+        if b_already_exists and is_downl:
+            return True, None
         if not b_ex:
             return None, 'Path does not exist'
         if not b_dir:
