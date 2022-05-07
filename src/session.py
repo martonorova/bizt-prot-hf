@@ -106,8 +106,6 @@ class Session(object):
         
         transfer_key, etk = self.retrieve_encrypt_transfer_key(typ)
 
-        logger.info(f'trasfer key: {transfer_key}')
-
         # encrypt payload
         encrypted_payload, authtag = self.encrypt_payload(transfer_key, header, payload)
 
@@ -141,9 +139,6 @@ class Session(object):
         transfer_key = self.retrieve_decrypt_transfer_key(message)
         
         payload = self.decrypt_payload(transfer_key, message)
-
-        # update sequence number
-        #self.s_sqn = message.header.sqn
         
         return (message.header.typ, payload)
 
