@@ -7,12 +7,16 @@
 
 ### Server
 
-#### Start
+#### Initialization
 
 Set the `SIFT_APP_ROOT` environment variable to an arbitrary folder on your machine, the initializer script uses the its value.
 
 To initialize the server with preloaded users, run the following command from the `src` folder: `python init-srv.py`
 
+To create the RSA keypair needed for the server (and the client), use the utility program `generate-rsa-key.py` in the `util` folder.
+
+#### Start
+To start the server, use the `server.py` program:
 
 ```
 Usage: server.py [OPTIONS]
@@ -31,7 +35,7 @@ Example:
 
 `python server.py -h localhost -p 5150 -k privkey.pem`
 
-*Note:* Rigth after starting the server, it will ask for the password for the private key to be able decrypt incoming login requests.
+*Note:* Rigth after starting the server, it will ask for the password of the private key to be able decrypt incoming login requests.
 
 #### Environment Variables
 
@@ -43,6 +47,8 @@ Example:
 ### Client
 
 #### Start
+
+To start the server, use the `client.py` program:
 
 ```
 Usage: client.py [OPTIONS]
