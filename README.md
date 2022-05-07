@@ -9,6 +9,11 @@
 
 #### Start
 
+Set the `SIFT_APP_ROOT` environment variable to an arbitrary folder on your machine, the initializer script uses the its value.
+
+To initialize the server with preloaded users, run the following command from the `src` folder: `python init-srv.py`
+
+
 ```
 Usage: server.py [OPTIONS]
 
