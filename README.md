@@ -1,5 +1,5 @@
 ### Used Third Party Tools
-- [argon2-cffi][https://pypi.org/project/click/] for hashing passwords on the server with Argon2
+- [argon2-cffi](https://pypi.org/project/click/) for hashing passwords on the server with Argon2
 - [click](https://click.palletsprojects.com/en/8.1.x/) for creating the cli
 - [pycryptodome](https://pypi.org/project/pycryptodome/) for building from cryptographic blocks
 
